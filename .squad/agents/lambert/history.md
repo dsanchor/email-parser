@@ -42,4 +42,23 @@
   4. Return appropriate status codes + render error.html with user-friendly messages
   5. Add test cases for query failures
 
+### Visual Upgrade (v2) — 2025-07-18
+
+- **Scope:** All 5 frontend files rewritten for cinematic Apple-inspired look
+- **Pattern:** Binary dark/light section rhythm applied throughout:
+  - Inbox: dark hero (title + count + search) → light gray list
+  - Detail: dark hero (56px subject) → light gray metadata grid → white body → dark attachments
+  - Error: dark hero (120px code) → light gray message+actions
+- **Inbox hero:** 56px SF Pro Display title, email count subtitle, dark-themed search with magnifying glass SVG
+- **Email cards:** Avatar with sender initial, hover lift (`translateY(-2px)` + shadow), subject truncation with ellipsis
+- **Detail hero:** Subject at display size (56px), structured metadata grid (From/To/Date/Attachments), 720px max-width body for readability
+- **Attachments:** Dark section with card grid, file-type SVG icons (PDF, image, doc, spreadsheet, archive, generic), hover lift
+- **Error page:** 120px display code, contextual labels (404/500/503), structured actions with SVGs
+- **Nav:** SVG mail envelope icon + text brand, inbox link with inbox SVG icon
+- **Footer:** Structured with brand name, vertical separator, attribution
+- **Transitions:** `--transition-fast: 0.2s ease`, `--transition-medium: 0.35s ease` on all interactive elements
+- **Responsive:** Full DESIGN.md breakpoints (360, 480, 640, 834, 1024px) with progressive scaling
+- **Template variable:** Uses `total` (not `total_count`) from app.py context
+- **All 30 tests passing after changes**
+
 ---

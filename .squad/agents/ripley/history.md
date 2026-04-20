@@ -76,3 +76,34 @@
 - **Key pattern:** Consumption Logic Apps get their workflow definition + connections embedded in the ARM resource at deploy time, unlike Standard which uses separate deployment
 - **User policy:** Zero shared keys anywhere — storage account `--allow-shared-key-access false`
 - **Key files:** `infrastructure/deploy.sh`, `logic-app/workflow.json`, `logic-app/connections.json`, `README.md`, `docs/architecture.md`
+
+### Session: Logic App Recursive Input Nesting Fix
+- **Issue:** Run history showed infinite recursive `Inputs > value > Inputs > value...` nesting pattern
+- **Root cause:** Office 365 V3 connector's `body` field is an object `{ content: "...", contentType: "..." }`, not a string
+  - When referenced multiple times in workflow (Compose action + Cosmos action), Logic Apps run history tracking creates nested representations
+  - The `Compose_Email_Metadata` action was unused — it composed trigger body but was never referenced downstream
+- **Fix applied to `logic-app/workflow.json`:**
+  - Removed unused `Compose_Email_Metadata` action (reduced redundant trigger references)
+  - Changed Cosmos document body field from `@{triggerBody()?['body']}` → `@{triggerBody()?['body']?['content']}`
+  - Now extracts only the HTML/text string content instead of storing the entire object
+- **Impact:**
+  - Run history is now clean and readable
+  - Cosmos DB `body` field correctly stores HTML string (as originally intended)
+  - No web app changes needed — Lambert's templates already expected `body` to be a string
+  - Performance improvement from removing unused action step
+- **Prevention pattern:** Always access `triggerBody()?['body']?['content']` explicitly when using Office 365 V3 connector
+- **Key file:** `logic-app/workflow.json`
+- **Decision doc:** `.squad/decisions/inbox/ripley-logic-app-recursive-fix.md`
+
+### Session: Cosmos DB BadGateway Fix
+- **Issue:** `Create_or_Update_Cosmos_Document` action failing with 502 BadGateway
+- **Root causes identified:**
+  1. `from` field used string interpolation `@{triggerBody()?['from']}` on a complex object `{emailAddress: {name, address}}` — serializes to garbage, corrupts the Cosmos document body
+  2. `messageId` (partition key `/messageId`) used `@{triggerBody()?['internetMessageId']}` with no null fallback — empty partition key value causes BadGateway
+- **Fix applied to `logic-app/workflow.json`:**
+  - Changed `from` from `@{triggerBody()?['from']}` → `@triggerBody()?['from']` (no string interpolation — preserves JSON object)
+  - Changed `messageId` from `@{triggerBody()?['internetMessageId']}` → `@{coalesce(triggerBody()?['internetMessageId'], triggerBody()?['id'])}` (fallback to O365 ID if internetMessageId is null)
+- **Pattern:** In Logic App expressions, use `@expr` (no braces) for objects/arrays, use `@{expr}` only for string values. Mixing these up is a common BadGateway source.
+- **Key insight:** `toRecipients`, `hasAttachments`, and `attachments` were already correct (no string interpolation on non-string types)
+- **Key file:** `logic-app/workflow.json`
+- **Decision doc:** `.squad/decisions/inbox/ripley-cosmos-badgateway-fix.md`
