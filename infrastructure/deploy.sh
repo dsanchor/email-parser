@@ -218,7 +218,6 @@ az resource create \
       }
     }
   }" \
-  --is-full-object false \
   --output none
 
 # Enable system-assigned managed identity
