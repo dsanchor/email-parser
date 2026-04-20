@@ -109,20 +109,23 @@ az resource create \
   --output none
 
 # Azure Blob Storage connection (managed identity)
+# Uses az rest (PUT) for explicit API version control — az resource create
+# can send to a wrong API version causing InternalServerError
 echo "  ▸ Azure Blob Storage connection (managed identity)..."
-az resource create \
-  --resource-group "$RESOURCE_GROUP" \
-  --resource-type "Microsoft.Web/connections" \
-  --name "azureblob" \
-  --location "$LOCATION" \
-  --properties "{
-    \"api\": {
-      \"id\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/azureblob\"
-    },
-    \"displayName\": \"Azure Blob Storage - Email Parser\",
-    \"parameterValueSet\": {
-      \"name\": \"managedIdentityAuth\",
-      \"values\": {}
+az rest \
+  --method PUT \
+  --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Web/connections/azureblob?api-version=2016-06-01" \
+  --body "{
+    \"location\": \"$LOCATION\",
+    \"properties\": {
+      \"api\": {
+        \"id\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/azureblob\"
+      },
+      \"displayName\": \"Azure Blob Storage - Email Parser\",
+      \"parameterValueSet\": {
+        \"name\": \"managedIdentityAuth\",
+        \"values\": {}
+      }
     }
   }" \
   --output none
@@ -175,7 +178,8 @@ WORKFLOW_DEFINITION=$(cat "$WORKFLOW_TEMPLATE")
 # Deploy Logic App Consumption with identity + workflow + MI-auth $connections
 # Uses az rest (PUT) so identity and MI-auth connections are created atomically
 # (creating without MI first would reject the MI-auth connectionProperties)
-cat > /tmp/logic-app-payload.json <<PAYLOAD
+PAYLOAD_FILE="$SCRIPT_DIR/.deploy-logic-app-payload.json"
+cat > "$PAYLOAD_FILE" <<PAYLOAD
 {
   "location": "$LOCATION",
   "identity": {
@@ -222,10 +226,10 @@ PAYLOAD
 az rest \
   --method PUT \
   --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Logic/workflows/${LOGIC_APP}?api-version=2019-05-01" \
-  --body @/tmp/logic-app-payload.json \
+  --body @"$PAYLOAD_FILE" \
   --output none
 
-rm -f /tmp/logic-app-payload.json
+rm -f "$PAYLOAD_FILE"
 
 LOGIC_APP_PRINCIPAL_ID=$(az resource show \
   --resource-group "$RESOURCE_GROUP" \

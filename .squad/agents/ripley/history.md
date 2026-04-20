@@ -119,3 +119,17 @@
   - Does NOT create any resources — no RG, Cosmos, Storage, Container App, or API connections
 - **Use case:** Quick workflow iteration — edit workflow.json, run redeploy, test in portal
 - **Key file:** `infrastructure/redeploy-logic-app.sh`
+
+### Session: Azure Blob Storage API Connection InternalServerError Fix
+- **Issue:** `az resource create` for the azureblob API connection returned InternalServerError every time
+- **Root causes:**
+  1. `accountName` is not a valid parameter for the `managedIdentityAuth` parameter value set — the correct key would be `storageAccount`, but MI auth needs no values at all
+  2. `az resource create` doesn't give explicit control over the ARM API version (`2016-06-01` required for `Microsoft.Web/connections`)
+- **Fix applied to `infrastructure/deploy.sh`:**
+  - Replaced `az resource create` with `az rest --method PUT` using explicit API version `2016-06-01`
+  - Changed `parameterValueSet.values` from `{ "accountName": { "value": "..." } }` to empty `{}`
+  - MI auth for blob is already handled at Logic App `$connections` level via `connectionProperties.authentication.type: ManagedServiceIdentity`
+  - Moved temp payload file from `/tmp/` to `$SCRIPT_DIR/.deploy-logic-app-payload.json` (consistent with redeploy script pattern)
+- **Pattern:** For `managedIdentityAuth` connections, the `parameterValueSet.values` should be empty — storage account targeting is handled by the workflow actions, not the connection resource
+- **`redeploy-logic-app.sh`:** No changes needed — it doesn't create API connections
+- **Key files:** `infrastructure/deploy.sh`, `.gitignore`
