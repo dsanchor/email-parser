@@ -36,12 +36,12 @@
       <a href="/emails/{{ email.id }}" class="email-card">
         <div class="email-card__left">
           <div class="email-card__avatar" aria-hidden="true">
-            {{ email.get('from', 'U')[0] | upper }}
+            {{ email.get('from', 'U') | extract_from_initial }}
           </div>
         </div>
         <div class="email-card__body">
           <div class="email-card__header">
-            <span class="email-card__from">{{ email.get('from', 'Unknown sender') }}</span>
+            <span class="email-card__from">{{ email.get('from', 'Unknown') | extract_from_display }}</span>
             <span class="email-card__date">{{ email.receivedDateTime | format_date }}</span>
           </div>
           <div class="email-card__subject">{{ email.subject }}</div>

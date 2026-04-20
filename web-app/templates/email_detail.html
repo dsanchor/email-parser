@@ -20,11 +20,19 @@
     <div class="detail-meta__grid">
       <div class="detail-meta__item">
         <div class="detail-meta__label">From</div>
-        <div class="detail-meta__value">{{ email.get('from', 'Unknown') }}</div>
+        {% set from_info = email.get('from', 'Unknown') | extract_from %}
+        <div class="detail-meta__value">
+          {% if from_info.name %}
+            <span class="detail-meta__name">{{ from_info.name }}</span>
+            <span class="detail-meta__secondary">{{ from_info.address }}</span>
+          {% else %}
+            {{ from_info.address or 'Unknown' }}
+          {% endif %}
+        </div>
       </div>
       <div class="detail-meta__item">
         <div class="detail-meta__label">To</div>
-        <div class="detail-meta__value">{{ email.get('toRecipients', []) | join(', ') or 'Unknown' }}</div>
+        <div class="detail-meta__value">{{ email.get('toRecipients', []) | extract_recipients }}</div>
       </div>
       <div class="detail-meta__item">
         <div class="detail-meta__label">Date</div>

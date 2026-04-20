@@ -72,3 +72,24 @@
 - **Test Status:** All 30 tests still passing (verify with `cd web-app && python -m pytest ../tests/ -v`)
 
 ---
+
+### UI Refresh & Data Model Fix (v3) — 2025-07-18
+
+- **Scope:** Data model compatibility + UI polish + new dashboard page
+- **Data Model Fixes:**
+  - Added Jinja2 filters: `extract_from`, `extract_from_display`, `extract_from_initial`, `extract_body`, `extract_recipients`
+  - These handle both string and object forms of `from`, `body`, and `toRecipients` fields
+  - Fixed `sanitize_html` in `email_detail` route to extract body content from object form before sanitizing
+  - Email detail metadata now shows sender name as primary text with email address as secondary
+- **New Dashboard Page:**
+  - Route: `GET /dashboard` — shows total email count, attachment stats, and 5 most recent emails
+  - Template: `dashboard.html` with stat cards and recent email list
+  - Dashboard link added to nav bar
+- **CSS Polish:**
+  - Removed legacy CSS section (search-bar, search-input, search-btn, generic card classes)
+  - Added subtle `border-bottom` on glass nav for definition
+  - Tightened email card gap from 6px to 2px for cleaner stacking
+  - Added `detail-meta__name` and `detail-meta__secondary` styles for structured from display
+  - Added full dashboard styles with stat cards, responsive grid
+  - Dashboard responsive: 3-col → 1-col stats on mobile
+- **All 30 tests passing — no regression**

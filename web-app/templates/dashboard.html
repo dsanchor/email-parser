@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Email Parser{% endblock %}
+
+{% block content %}
+{# Dark hero — dashboard overview #}
+<section class="dash-hero">
+  <div class="container">
+    <h1 class="dash-hero__title">Dashboard</h1>
+    <p class="dash-hero__subtitle">Your email processing overview</p>
+  </div>
+</section>
+
+{# Stats — light section #}
+<section class="dash-stats">
+  <div class="container">
+    <div class="dash-stats__grid">
+      <div class="dash-stat">
+        <div class="dash-stat__value">{{ total }}</div>
+        <div class="dash-stat__label">Total Emails</div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat__value">{{ with_attachments }}</div>
+        <div class="dash-stat__label">With Attachments</div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat__value">{{ total - with_attachments }}</div>
+        <div class="dash-stat__label">Text Only</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# Recent emails — white section #}
+<section class="dash-recent">
+  <div class="container">
+    <div class="dash-recent__header">
+      <h2 class="dash-recent__title">Recent Emails</h2>
+      <a href="/emails" class="btn-pill">View all</a>
+    </div>
+    {% if recent %}
+    <div class="email-list">
+      {% for email in recent %}
+      <a href="/emails/{{ email.id }}" class="email-card">
+        <div class="email-card__left">
+          <div class="email-card__avatar" aria-hidden="true">
+            {{ email.get('from', 'U') | extract_from_initial }}
+          </div>
+        </div>
+        <div class="email-card__body">
+          <div class="email-card__header">
+            <span class="email-card__from">{{ email.get('from', 'Unknown') | extract_from_display }}</span>
+            <span class="email-card__date">{{ email.receivedDateTime | format_date }}</span>
+          </div>
+          <div class="email-card__subject">{{ email.subject }}</div>
+          <div class="email-card__preview">{{ email.get('bodyPreview', '') }}</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state__title">No emails yet</div>
+      <div class="empty-state__text">Emails will appear here when they arrive</div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

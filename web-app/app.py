@@ -130,8 +130,65 @@ def sanitize_html(html: str) -> str:
     )
 
 
+def extract_from(value) -> dict:
+    """Extract display name and email address from either string or object form.
+
+    Returns dict with 'name' and 'address' keys.
+    """
+    if isinstance(value, dict):
+        ea = value.get("emailAddress", {})
+        return {"name": ea.get("name", ""), "address": ea.get("address", "")}
+    if isinstance(value, str):
+        return {"name": "", "address": value}
+    return {"name": "", "address": "Unknown"}
+
+
+def extract_from_display(value) -> str:
+    """Return the best human-readable display for a from field."""
+    info = extract_from(value)
+    return info["name"] if info["name"] else info["address"] or "Unknown"
+
+
+def extract_from_initial(value) -> str:
+    """Return a single initial character for avatar display."""
+    display = extract_from_display(value)
+    return display[0].upper() if display else "?"
+
+
+def extract_body(value) -> str:
+    """Extract HTML string from either string or object body form."""
+    if isinstance(value, dict):
+        return value.get("content", "")
+    if isinstance(value, str):
+        return value
+    return ""
+
+
+def extract_recipients(value) -> str:
+    """Return comma-separated recipient string from either string or array-of-objects form."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        names = []
+        for item in value:
+            if isinstance(item, dict):
+                ea = item.get("emailAddress", {})
+                name = ea.get("name", "") or ea.get("address", "")
+                if name:
+                    names.append(name)
+            elif isinstance(item, str):
+                names.append(item)
+        return ", ".join(names) if names else "Unknown"
+    return "Unknown"
+
+
 templates.env.filters["format_date"] = _format_date
 templates.env.filters["human_size"] = _human_size
+templates.env.filters["extract_from"] = extract_from
+templates.env.filters["extract_from_display"] = extract_from_display
+templates.env.filters["extract_from_initial"] = extract_from_initial
+templates.env.filters["extract_body"] = extract_body
+templates.env.filters["extract_recipients"] = extract_recipients
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +252,38 @@ async def email_list(request: Request, page: int = Query(1, ge=1), q: str = Quer
     )
 
 
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    try:
+        container = _get_cosmos_container()
+        query_text = "SELECT * FROM c ORDER BY c.receivedDateTime DESC"
+        items = list(
+            container.query_items(query=query_text, parameters=[], enable_cross_partition_query=True)
+        )
+    except Exception:
+        logger.exception("Failed to fetch dashboard data from Cosmos DB")
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {"code": 503, "message": "Unable to load dashboard. Please try again later."},
+            status_code=503,
+        )
+
+    total = len(items)
+    recent = items[:5]
+    with_attachments = sum(1 for e in items if e.get("hasAttachments"))
+
+    return templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {
+            "total": total,
+            "recent": recent,
+            "with_attachments": with_attachments,
+        },
+    )
+
+
 @app.get("/emails/{email_id}", response_class=HTMLResponse)
 async def email_detail(request: Request, email_id: str):
     try:
@@ -218,9 +307,9 @@ async def email_detail(request: Request, email_id: str):
         raise HTTPException(status_code=404, detail="Email not found")
 
     email = results[0]
-    # Sanitize email body to prevent XSS
+    # Sanitize email body to prevent XSS — handle both string and object forms
     if "body" in email:
-        email["body"] = sanitize_html(email["body"])
+        email["body"] = sanitize_html(extract_body(email["body"]))
     return templates.TemplateResponse(request, "email_detail.html", {"email": email})
 
 
