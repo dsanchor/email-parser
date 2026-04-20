@@ -38,13 +38,14 @@ The script creates all Azure resources: Cosmos DB (serverless), Storage Account 
 
 ### 2. Configure the Office 365 Connection
 
-The deploy script creates the Logic App (Consumption) with the workflow definition already embedded. After deployment:
+The deploy script creates the Logic App (Consumption) with the workflow definition already embedded. After deployment, you need to authorize the Office 365 API connection:
 
-1. Open the **Logic App** in the Azure Portal
-2. Open the **Designer** view
-3. Click the Office 365 Outlook trigger
-4. Sign in with your Microsoft 365 account to authorize email access
-5. Save the workflow
+1. In the Azure Portal, navigate to your **Resource Group**
+2. Open the **API Connections** resource named **office365**
+3. In the left menu, click **Edit API connection**
+4. Click the **Authorize** button
+5. Sign in with your Microsoft 365 account to grant email access
+6. Click **Save**
 
 ### 3. Build and Deploy the Web App
 
@@ -148,7 +149,7 @@ This solution uses **zero connection strings**. All service-to-service authentic
 | Container App | Blob Storage | Storage Blob Data Reader |
 | Container App | Cosmos DB | Cosmos DB Built-in Data Reader |
 
-The only interactive authentication is the **Office 365 OAuth consent** for the Logic App email connector — this is a one-time setup step in the Azure Portal.
+The only interactive authentication is the **Office 365 OAuth consent** — a one-time step in the Azure Portal under **API Connections → office365 → Edit API connection → Authorize**.
 
 ## Local Development
 
