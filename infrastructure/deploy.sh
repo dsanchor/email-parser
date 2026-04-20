@@ -3,8 +3,9 @@ set -euo pipefail
 
 ###############################################################################
 # Email Parser — Azure Infrastructure Deployment
-# Provisions: Resource Group, Cosmos DB, Storage, Logic App Standard,
-#             Container Apps, Managed Identity roles
+# Provisions: Resource Group, Cosmos DB, Storage, Logic App (Consumption),
+#             Container Apps, Managed Identity roles, API Connections
+# Security: Zero shared keys — all access via managed identity
 ###############################################################################
 
 # ── Configuration ────────────────────────────────────────────────────────────
@@ -15,7 +16,6 @@ COSMOS_DB="email-parser-db"
 COSMOS_CONTAINER="emails"
 STORAGE_ACCOUNT="${STORAGE_ACCOUNT:-emailparserstor}"
 BLOB_CONTAINER="email-attachments"
-APP_SERVICE_PLAN="${APP_SERVICE_PLAN:-email-parser-asp}"
 LOGIC_APP="${LOGIC_APP:-email-parser-logic}"
 CONTAINER_ENV="${CONTAINER_ENV:-email-parser-env}"
 CONTAINER_APP="${CONTAINER_APP:-email-parser-app}"
@@ -29,7 +29,7 @@ echo "  Resource Group:  $RESOURCE_GROUP"
 echo "  Location:        $LOCATION"
 echo "  Cosmos Account:  $COSMOS_ACCOUNT"
 echo "  Storage Account: $STORAGE_ACCOUNT"
-echo "  Logic App:       $LOGIC_APP"
+echo "  Logic App:       $LOGIC_APP (Consumption)"
 echo "  Container App:   $CONTAINER_APP"
 echo ""
 
@@ -67,8 +67,8 @@ az cosmosdb sql container create \
   --partition-key-path "/messageId" \
   --output none
 
-# ── Storage Account ──────────────────────────────────────────────────────────
-echo "▸ Creating storage account..."
+# ── Storage Account (shared key access DISABLED) ────────────────────────────
+echo "▸ Creating storage account (shared key access disabled)..."
 az storage account create \
   --name "$STORAGE_ACCOUNT" \
   --resource-group "$RESOURCE_GROUP" \
@@ -76,6 +76,7 @@ az storage account create \
   --sku Standard_LRS \
   --kind StorageV2 \
   --min-tls-version TLS1_2 \
+  --allow-shared-key-access false \
   --allow-blob-public-access false \
   --output none
 
@@ -86,38 +87,186 @@ az storage container create \
   --auth-mode login \
   --output none
 
-# ── App Service Plan (Logic App Standard requires WS1) ──────────────────────
-echo "▸ Creating App Service Plan (WS1)..."
-az appservice plan create \
-  --name "$APP_SERVICE_PLAN" \
+# ── API Connections for Logic App ────────────────────────────────────────────
+echo ""
+echo "▸ Creating API connections for Logic App..."
+
+SUBSCRIPTION_ID=$(az account show --query id --output tsv)
+
+# Office 365 connection (requires interactive OAuth consent post-deploy)
+echo "  ▸ Office 365 connection..."
+az resource create \
   --resource-group "$RESOURCE_GROUP" \
+  --resource-type "Microsoft.Web/connections" \
+  --name "office365" \
   --location "$LOCATION" \
-  --sku WS1 \
+  --properties "{
+    \"api\": {
+      \"id\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/office365\"
+    },
+    \"displayName\": \"Office 365 - Email Parser\"
+  }" \
   --output none
 
-# ── Logic App Standard ───────────────────────────────────────────────────────
-echo "▸ Creating Logic App Standard..."
-az logicapp create \
-  --name "$LOGIC_APP" \
+# Azure Blob Storage connection (managed identity)
+echo "  ▸ Azure Blob Storage connection (managed identity)..."
+az resource create \
   --resource-group "$RESOURCE_GROUP" \
-  --plan "$APP_SERVICE_PLAN" \
-  --storage-account "$STORAGE_ACCOUNT" \
+  --resource-type "Microsoft.Web/connections" \
+  --name "azureblob" \
+  --location "$LOCATION" \
+  --properties "{
+    \"api\": {
+      \"id\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/azureblob\"
+    },
+    \"displayName\": \"Azure Blob Storage - Email Parser\",
+    \"parameterValueSet\": {
+      \"name\": \"managedIdentityAuth\",
+      \"values\": {}
+    }
+  }" \
   --output none
 
+# Cosmos DB connection (managed identity)
+echo "  ▸ Cosmos DB connection (managed identity)..."
+COSMOS_ENDPOINT=$(az cosmosdb show \
+  --name "$COSMOS_ACCOUNT" \
+  --resource-group "$RESOURCE_GROUP" \
+  --query documentEndpoint --output tsv)
+
+az resource create \
+  --resource-group "$RESOURCE_GROUP" \
+  --resource-type "Microsoft.Web/connections" \
+  --name "cosmosdb" \
+  --location "$LOCATION" \
+  --properties "{
+    \"api\": {
+      \"id\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/documentdb\"
+    },
+    \"displayName\": \"Cosmos DB - Email Parser\",
+    \"parameterValueSet\": {
+      \"name\": \"managedIdentityAuth\",
+      \"values\": {
+        \"databaseAccount\": {
+          \"value\": \"$COSMOS_ACCOUNT\"
+        }
+      }
+    }
+  }" \
+  --output none
+
+# ── Logic App (Consumption) with managed identity ────────────────────────────
+echo ""
+echo "▸ Creating Logic App (Consumption) with system-assigned managed identity..."
+
+# Build connection resource IDs
+OFFICE365_CONN_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Web/connections/office365"
+AZUREBLOB_CONN_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Web/connections/azureblob"
+COSMOSDB_CONN_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Web/connections/cosmosdb"
+OFFICE365_API_ID="/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/office365"
+AZUREBLOB_API_ID="/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/azureblob"
+COSMOSDB_API_ID="/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/documentdb"
+
+# Read the workflow definition template
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKFLOW_TEMPLATE="$SCRIPT_DIR/../logic-app/workflow.json"
+
+if [ ! -f "$WORKFLOW_TEMPLATE" ]; then
+  echo "ERROR: Workflow definition not found at $WORKFLOW_TEMPLATE"
+  exit 1
+fi
+
+WORKFLOW_DEFINITION=$(cat "$WORKFLOW_TEMPLATE")
+
+# Deploy Logic App Consumption with workflow definition and $connections
+az resource create \
+  --resource-group "$RESOURCE_GROUP" \
+  --resource-type "Microsoft.Logic/workflows" \
+  --name "$LOGIC_APP" \
+  --location "$LOCATION" \
+  --properties "{
+    \"state\": \"Enabled\",
+    \"definition\": $WORKFLOW_DEFINITION,
+    \"parameters\": {
+      \"\$connections\": {
+        \"value\": {
+          \"office365\": {
+            \"connectionId\": \"$OFFICE365_CONN_ID\",
+            \"connectionName\": \"office365\",
+            \"connectionProperties\": {
+              \"authentication\": {
+                \"type\": \"ManagedServiceIdentity\"
+              }
+            },
+            \"id\": \"$OFFICE365_API_ID\"
+          },
+          \"azureblob\": {
+            \"connectionId\": \"$AZUREBLOB_CONN_ID\",
+            \"connectionName\": \"azureblob\",
+            \"connectionProperties\": {
+              \"authentication\": {
+                \"type\": \"ManagedServiceIdentity\"
+              }
+            },
+            \"id\": \"$AZUREBLOB_API_ID\"
+          },
+          \"cosmosdb\": {
+            \"connectionId\": \"$COSMOSDB_CONN_ID\",
+            \"connectionName\": \"cosmosdb\",
+            \"connectionProperties\": {
+              \"authentication\": {
+                \"type\": \"ManagedServiceIdentity\"
+              }
+            },
+            \"id\": \"$COSMOSDB_API_ID\"
+          }
+        }
+      }
+    }
+  }" \
+  --is-full-object false \
+  --output none
+
+# Enable system-assigned managed identity
 echo "▸ Enabling system-assigned managed identity on Logic App..."
-az webapp identity assign \
-  --name "$LOGIC_APP" \
+az resource update \
   --resource-group "$RESOURCE_GROUP" \
+  --resource-type "Microsoft.Logic/workflows" \
+  --name "$LOGIC_APP" \
+  --set "identity={\"type\":\"SystemAssigned\"}" \
   --output none
 
-LOGIC_APP_PRINCIPAL_ID=$(az webapp identity show \
-  --name "$LOGIC_APP" \
+LOGIC_APP_PRINCIPAL_ID=$(az resource show \
   --resource-group "$RESOURCE_GROUP" \
-  --query principalId --output tsv)
+  --resource-type "Microsoft.Logic/workflows" \
+  --name "$LOGIC_APP" \
+  --query "identity.principalId" --output tsv)
 
 echo "  Logic App MI Principal ID: $LOGIC_APP_PRINCIPAL_ID"
 
+# Grant Logic App managed identity access to API connections
+echo "  ▸ Granting Logic App access to API connections..."
+TENANT_ID=$(az account show --query tenantId --output tsv)
+
+for CONN_NAME in office365 azureblob cosmosdb; do
+  az resource create \
+    --resource-group "$RESOURCE_GROUP" \
+    --resource-type "Microsoft.Web/connections/accessPolicies" \
+    --name "$CONN_NAME/$LOGIC_APP" \
+    --properties "{
+      \"principal\": {
+        \"type\": \"ActiveDirectory\",
+        \"identity\": {
+          \"tenantId\": \"$TENANT_ID\",
+          \"objectId\": \"$LOGIC_APP_PRINCIPAL_ID\"
+        }
+      }
+    }" \
+    --output none 2>/dev/null || true
+done
+
 # ── Container Apps Environment ───────────────────────────────────────────────
+echo ""
 echo "▸ Creating Container Apps Environment..."
 az containerapp env create \
   --name "$CONTAINER_ENV" \
@@ -126,11 +275,6 @@ az containerapp env create \
   --output none
 
 # ── Container App ────────────────────────────────────────────────────────────
-COSMOS_ENDPOINT=$(az cosmosdb show \
-  --name "$COSMOS_ACCOUNT" \
-  --resource-group "$RESOURCE_GROUP" \
-  --query documentEndpoint --output tsv)
-
 STORAGE_ACCOUNT_URL="https://${STORAGE_ACCOUNT}.blob.core.windows.net"
 
 echo "▸ Creating Container App (with placeholder image)..."
@@ -211,110 +355,12 @@ az cosmosdb sql role assignment create \
   --scope "/" \
   --output none 2>/dev/null || echo "    (already assigned)"
 
-# ── API Connections for Logic App ────────────────────────────────────────────
-echo ""
-echo "▸ Creating API connections for Logic App..."
-
-SUBSCRIPTION_ID=$(az account show --query id --output tsv)
-
-# Office 365 connection (requires interactive OAuth consent)
-echo "  ▸ Office 365 connection..."
-az resource create \
-  --resource-group "$RESOURCE_GROUP" \
-  --resource-type "Microsoft.Web/connections" \
-  --name "office365" \
-  --location "$LOCATION" \
-  --properties "{
-    \"api\": {
-      \"id\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/office365\"
-    },
-    \"displayName\": \"Office 365 - Email Parser\"
-  }" \
-  --output none
-
-# Azure Blob Storage connection (managed identity)
-echo "  ▸ Azure Blob Storage connection (managed identity)..."
-az resource create \
-  --resource-group "$RESOURCE_GROUP" \
-  --resource-type "Microsoft.Web/connections" \
-  --name "azureblob" \
-  --location "$LOCATION" \
-  --properties "{
-    \"api\": {
-      \"id\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/azureblob\"
-    },
-    \"displayName\": \"Azure Blob Storage - Email Parser\",
-    \"parameterValueSet\": {
-      \"name\": \"managedIdentityAuth\",
-      \"values\": {}
-    }
-  }" \
-  --output none
-
-# Cosmos DB connection (managed identity)
-echo "  ▸ Cosmos DB connection (managed identity)..."
-COSMOS_ENDPOINT=$(az cosmosdb show \
-  --name "$COSMOS_ACCOUNT" \
-  --resource-group "$RESOURCE_GROUP" \
-  --query documentEndpoint --output tsv)
-
-az resource create \
-  --resource-group "$RESOURCE_GROUP" \
-  --resource-type "Microsoft.Web/connections" \
-  --name "cosmosdb" \
-  --location "$LOCATION" \
-  --properties "{
-    \"api\": {
-      \"id\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/documentdb\"
-    },
-    \"displayName\": \"Cosmos DB - Email Parser\",
-    \"parameterValueSet\": {
-      \"name\": \"managedIdentityAuth\",
-      \"values\": {
-        \"databaseAccount\": {
-          \"value\": \"$COSMOS_ACCOUNT\"
-        }
-      }
-    }
-  }" \
-  --output none
-
-# Grant Logic App access to API connections
-echo "  ▸ Granting Logic App access to API connections..."
-for CONN_NAME in office365 azureblob cosmosdb; do
-  CONN_ID=$(az resource show \
-    --resource-group "$RESOURCE_GROUP" \
-    --resource-type "Microsoft.Web/connections" \
-    --name "$CONN_NAME" \
-    --query id --output tsv)
-
-  az resource create \
-    --resource-group "$RESOURCE_GROUP" \
-    --resource-type "Microsoft.Web/connections/accessPolicies" \
-    --name "$CONN_NAME/$LOGIC_APP" \
-    --properties "{
-      \"principal\": {
-        \"type\": \"ActiveDirectory\",
-        \"identity\": {
-          \"tenantId\": \"$(az account show --query tenantId --output tsv)\",
-          \"objectId\": \"$LOGIC_APP_PRINCIPAL_ID\"
-        }
-      }
-    }" \
-    --output none 2>/dev/null || true
-done
-
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║  Deployment Complete                                        ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
-
-LOGIC_APP_URL=$(az logicapp show \
-  --name "$LOGIC_APP" \
-  --resource-group "$RESOURCE_GROUP" \
-  --query defaultHostName --output tsv 2>/dev/null || echo "N/A")
 
 CONTAINER_APP_URL=$(az containerapp show \
   --name "$CONTAINER_APP" \
@@ -327,10 +373,9 @@ echo "  Cosmos DB Account:   $COSMOS_ACCOUNT"
 echo "  Cosmos DB Endpoint:  ${COSMOS_ENDPOINT:-N/A}"
 echo "  Cosmos Database:     $COSMOS_DB"
 echo "  Cosmos Container:    $COSMOS_CONTAINER (partition: /messageId)"
-echo "  Storage Account:     $STORAGE_ACCOUNT"
+echo "  Storage Account:     $STORAGE_ACCOUNT (shared key access DISABLED)"
 echo "  Blob Container:      $BLOB_CONTAINER"
-echo "  Logic App:           $LOGIC_APP"
-echo "  Logic App URL:       https://$LOGIC_APP_URL"
+echo "  Logic App:           $LOGIC_APP (Consumption)"
 echo "  Container App:       $CONTAINER_APP"
 echo "  Container App URL:   https://$CONTAINER_APP_URL"
 echo ""
@@ -342,13 +387,17 @@ echo "  Container App MI ($CONTAINER_APP_PRINCIPAL_ID):"
 echo "    → Storage Blob Data Reader on $STORAGE_ACCOUNT"
 echo "    → Cosmos DB Built-in Data Reader (00000000-0000-0000-0000-000000000001)"
 echo ""
+echo "Security:"
+echo "  ✓ Storage shared key access: DISABLED"
+echo "  ✓ All service auth: Managed Identity only"
+echo "  ✓ Zero connection strings"
+echo ""
 echo "⚠  Next steps:"
 echo "  1. Authorize the Office 365 API connection in the Azure Portal"
 echo "     (requires interactive OAuth consent)"
-echo "  2. Deploy the Logic App workflow from logic-app/"
-echo "  3. Push web-app changes to main branch to trigger GitHub Actions build"
+echo "  2. Push web-app changes to main branch to trigger GitHub Actions build"
 echo "     (or trigger manually via workflow_dispatch)"
-echo "  4. After GH Actions builds the image, update the Container App:"
+echo "  3. After GH Actions builds the image, update the Container App:"
 echo "     az containerapp update \\"
 echo "       --resource-group $RESOURCE_GROUP \\"
 echo "       --name $CONTAINER_APP \\"

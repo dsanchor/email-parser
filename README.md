@@ -34,34 +34,19 @@ chmod +x infrastructure/deploy.sh
 ./infrastructure/deploy.sh
 ```
 
-The script creates all Azure resources: Cosmos DB (serverless), Storage Account, Logic App Standard, Container Apps, and all managed identity role assignments.
+The script creates all Azure resources: Cosmos DB (serverless), Storage Account (shared key access disabled), Logic App (Consumption), Container Apps, API connections, and all managed identity role assignments.
 
-### 2. Deploy the Logic App Workflow
+### 2. Configure the Office 365 Connection
 
-After infrastructure is up, deploy the Logic App workflow:
+The deploy script creates the Logic App (Consumption) with the workflow definition already embedded. After deployment:
 
-```bash
-# Navigate to the logic-app directory
-cd logic-app
+1. Open the **Logic App** in the Azure Portal
+2. Open the **Designer** view
+3. Click the Office 365 Outlook trigger
+4. Sign in with your Microsoft 365 account to authorize email access
+5. Save the workflow
 
-# Deploy via Azure CLI (or use VS Code Logic App extension)
-az logicapp deployment source config-zip \
-  --resource-group rg-email-parser \
-  --name <your-logic-app-name> \
-  --src workflow.zip
-```
-
-### 3. Configure the Office 365 Connection
-
-1. Open the Logic App in the Azure Portal
-2. Go to **Workflows** → **email-processor**
-3. Open the **Designer**
-4. Click the Office 365 Outlook trigger
-5. Sign in with your Microsoft 365 account to authorize email access
-6. Select the inbox folder to monitor
-7. Save the workflow
-
-### 4. Build and Deploy the Web App
+### 3. Build and Deploy the Web App
 
 The web app is automatically built and pushed to GitHub Packages (ghcr.io) via GitHub Actions whenever changes to `web-app/` are pushed to `main`.
 
@@ -102,7 +87,8 @@ email-parser/
 ├── infrastructure/
 │   └── deploy.sh                # AZ CLI deployment (all resources)
 ├── logic-app/
-│   └── workflow.json            # Logic App workflow definition
+│   ├── workflow.json            # Logic App workflow definition (Consumption)
+│   └── connections.json         # Connection reference (documentation only)
 ├── web-app/
 │   ├── app.py                   # FastAPI application
 │   ├── requirements.txt         # Python dependencies

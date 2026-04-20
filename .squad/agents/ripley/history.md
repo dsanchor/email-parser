@@ -50,3 +50,29 @@
   - Updated Deployment Architecture section with workflow details
 - **Rationale:** GitHub Packages is free for public repos, integrated with GH Actions, and eliminates one Azure resource to provision/maintain
 - **Key files affected:** `infrastructure/deploy.sh`, `.github/workflows/build-push.yml`, `README.md`, `docs/architecture.md`
+
+### Session: Logic App Standard → Consumption Migration
+- **Trigger:** Logic App Standard deployment failed because it requires storage account shared keys, and the user's policy mandates `--allow-shared-key-access false`
+- Rewrote `infrastructure/deploy.sh`:
+  - Removed App Service Plan (WS1) — Consumption doesn't need it
+  - Removed `APP_SERVICE_PLAN` config variable
+  - Removed `az logicapp create` / `az webapp identity assign` / `az webapp identity show` (Standard-specific commands)
+  - Added `az resource create --resource-type Microsoft.Logic/workflows` for Consumption Logic App
+  - Deploy script reads `logic-app/workflow.json` and injects it as the definition in the ARM resource body
+  - `$connections` parameters (office365, azureblob, cosmosdb) are populated with actual subscription/RG/connection IDs at deploy time
+  - System-assigned managed identity enabled via `az resource update --set identity`
+  - Changed `--allow-shared-key-access true` → `--allow-shared-key-access false` on storage account
+  - Moved API connection creation BEFORE Logic App creation (connections must exist for the workflow definition)
+  - Removed `az logicapp show` from summary; Logic App Consumption has no public URL
+- Rewrote `logic-app/workflow.json`:
+  - Removed `"kind": "Stateful"` wrapper (Consumption doesn't use kind)
+  - Changed from Standard format (wrapped in `definition` + `kind`) to bare workflow definition
+  - Changed connection references from `"referenceName"` to `"name": "@parameters('$connections')['<name>']['connectionId']"` (Consumption format)
+- Rewrote `logic-app/connections.json`:
+  - Replaced Standard `managedApiConnections` with `@appsetting()` references → reference-only doc
+  - File is now documentation only; Consumption Logic Apps don't use connections.json at runtime
+- Updated `README.md`: removed Logic App Standard references, removed separate workflow deploy step
+- Updated `docs/architecture.md`: changed all Standard/WS1/ASP references to Consumption
+- **Key pattern:** Consumption Logic Apps get their workflow definition + connections embedded in the ARM resource at deploy time, unlike Standard which uses separate deployment
+- **User policy:** Zero shared keys anywhere — storage account `--allow-shared-key-access false`
+- **Key files:** `infrastructure/deploy.sh`, `logic-app/workflow.json`, `logic-app/connections.json`, `README.md`, `docs/architecture.md`

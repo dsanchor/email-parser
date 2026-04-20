@@ -9,7 +9,7 @@
 │  ┌──────────────┐       ┌──────────────┐       ┌──────────────────────┐ │
 │  │              │       │              │       │                      │ │
 │  │   Microsoft  │──────▶│  Logic App   │──────▶│   Azure Blob Storage │ │
-│  │   365 Email  │ trigger│  (Standard)  │ upload│  email-attachments/  │ │
+│  │   365 Email  │ trigger│ (Consumption)│ upload│  email-attachments/  │ │
 │  │              │       │              │       │  {emailId}/{filename}│ │
 │  └──────────────┘       └──────┬───────┘       └──────────┬───────────┘ │
 │                                │ store metadata            │ read       │
@@ -140,9 +140,9 @@ email-attachments/
 
 ## Logic App Workflow Design
 
-**Type:** Logic App Standard (kind: `functionapp,workflowapp`)
-**Workflow:** Stateful (reliable delivery, retry support)
-**Location:** Deployed on App Service Plan (WS1 SKU)
+**Type:** Logic App (Consumption)
+**Workflow:** Triggered on email arrival, processes per-message via splitOn
+**Location:** Azure serverless (no App Service Plan needed)
 
 ### Workflow Steps
 
@@ -282,6 +282,7 @@ All service-to-service communication uses Azure Managed Identities. **Zero conne
 ┌──────────────────────────────────────────────┐
 │              Security Principles              │
 ├──────────────────────────────────────────────┤
+│ ✓ Storage shared key access DISABLED          │
 │ ✓ All Azure service auth via Managed Identity│
 │ ✓ Zero connection strings in config/code     │
 │ ✓ Cosmos DB data-plane RBAC (not keys)       │
@@ -306,8 +307,9 @@ All service-to-service communication uses Azure Managed Identities. **Zero conne
 │  infrastructure/deploy.sh                                        │
 │  ├── Resource Group                                              │
 │  ├── Cosmos DB Account (serverless) + Database + Container       │
-│  ├── Storage Account + Blob Container                            │
-│  ├── App Service Plan (WS1) + Logic App Standard                 │
+│  ├── Storage Account (shared keys disabled) + Blob Container     │
+│  ├── API Connections (Office 365, Blob, Cosmos DB)               │
+│  ├── Logic App (Consumption) + Managed Identity                  │
 │  ├── Container Apps Environment + Container App                  │
 │  └── Managed Identity Role Assignments (4 assignments)           │
 │                                                                  │
@@ -317,7 +319,6 @@ All service-to-service communication uses Azure Managed Identities. **Zero conne
 │  └── Push to ghcr.io/<owner>/<repo>/email-parser-web            │
 │                                                                  │
 │  Post-deploy (manual):                                           │
-│  ├── Deploy Logic App workflow (logic-app/workflow.json)         │
 │  ├── Configure O365 connector (interactive OAuth consent)        │
 │  └── Update Container App with ghcr.io image                    │
 └─────────────────────────────────────────────────────────────────┘
@@ -336,7 +337,8 @@ email-parser/
 ├── infrastructure/
 │   └── deploy.sh                # AZ CLI deployment script
 ├── logic-app/
-│   └── workflow.json            # Logic App Standard workflow definition
+│   ├── workflow.json            # Logic App Consumption workflow definition
+│   └── connections.json         # Connection reference (documentation only)
 ├── web-app/
 │   ├── app.py                   # FastAPI application
 │   ├── requirements.txt         # Python dependencies
