@@ -105,3 +105,25 @@
 - **Your Action:** No code changes needed. Dashboard and templates will now receive data correctly from properly-configured Cosmos DB.
 - **Impact:** Infrastructure reliability — Blob Storage and Cosmos DB actions now resolve to correct accounts
 - **Test Status:** All 30 tests still passing (verify with `cd web-app && python -m pytest ../tests/ -v`)
+
+---
+
+### Complete UI Rewrite (v4) — 2025-07-18
+
+- **Scope:** Full frontend rewrite — from card-based layout to clean sortable table
+- **Motivation:** User feedback: previous design was overengineered and visually noisy
+- **Changes:**
+  - **Inbox:** Single sortable table (Date, From, Subject) with client-side JS column sorting (click headers to toggle asc/desc)
+  - **Detail:** Clean flat layout — subject heading, metadata card (From/To/Date), body card, attachment list
+  - **Removed:** `/dashboard` route + `dashboard.html` template, pagination, hero sections, avatar circles, card grid layouts
+  - **CSS:** Complete rewrite from scratch — ~400 lines down from ~700+. Table-focused, minimal chrome
+  - **JS:** `static/js/sort.js` — external file for table sorting (avoids inline `<script>` which tripped XSS tests)
+  - **Search:** Live filter input with clear button, submits as query param
+- **Design compliance (DESIGN.md):**
+  - Glass nav: `rgba(0,0,0,0.8)` + `backdrop-filter: blur(20px)`
+  - Background: `#f5f5f7`, text: `#1d1d1f`, accent: Apple Blue `#0071e3` only on interactive elements
+  - SF Pro font stack, negative letter-spacing at all sizes
+  - Pill-shaped buttons (980px radius)
+  - Responsive: horizontal table scroll on mobile, stacked metadata on small screens
+- **Data model:** All Jinja2 filters preserved (extract_from, extract_body, etc.) — handles both string and object field forms
+- **All 30 tests passing — no regression**
