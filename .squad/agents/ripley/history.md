@@ -107,3 +107,15 @@
 - **Key insight:** `toRecipients`, `hasAttachments`, and `attachments` were already correct (no string interpolation on non-string types)
 - **Key file:** `logic-app/workflow.json`
 - **Decision doc:** `.squad/decisions/inbox/ripley-cosmos-badgateway-fix.md`
+
+### Session: Logic App Workflow Redeploy Script
+- Created `infrastructure/redeploy-logic-app.sh` — focused script that ONLY redeploys the Logic App workflow definition
+  - Validates Logic App exists before attempting deploy (fail-fast with helpful error)
+  - Uses same config variables and naming conventions as `deploy.sh` (RESOURCE_GROUP, LOCATION, LOGIC_APP)
+  - Reads `logic-app/workflow.json` and deploys via `az rest --method PUT` (same ARM pattern as deploy.sh)
+  - Builds `$connections` parameters from subscription/RG IDs (office365, azureblob with MI, cosmosdb with MI)
+  - Preserves SystemAssigned managed identity (PUT is idempotent, won't rotate principal)
+  - Writes temp payload to `infrastructure/.redeploy-logic-app-payload.json` (not /tmp) and cleans up after
+  - Does NOT create any resources — no RG, Cosmos, Storage, Container App, or API connections
+- **Use case:** Quick workflow iteration — edit workflow.json, run redeploy, test in portal
+- **Key file:** `infrastructure/redeploy-logic-app.sh`
