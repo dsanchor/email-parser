@@ -205,6 +205,52 @@ Ripley must configure Container Apps with these env vars and assign managed iden
 
 ---
 
+### UI Refresh & Data Model Compatibility — Lambert
+
+**Date:** 2026-04-20 | **Status:** Implemented
+
+**Scope:** Address polymorphic Cosmos DB field types + visual polish + new dashboard route.
+
+**Background:** Ripley's Logic App fixes changed data types: `from` field now arrives as native JSON object `{emailAddress: {name, address}}` instead of string. Templates assuming string types would render incorrectly.
+
+**Decision:** Use Jinja2 template filters to normalize field access patterns across all templates, handling both legacy (string) and new (object) forms transparently. Added new `/dashboard` route for email statistics overview.
+
+**Key Changes:**
+- **Template Filters (5 new):**
+  - `extract_from` — returns email address from object or string
+  - `extract_from_display` — returns sender name for display
+  - `extract_from_initial` — returns sender initial for avatar
+  - `extract_body` — extracts content from object or returns string as-is
+  - `extract_recipients` — normalizes recipient list to display format
+- **New Dashboard Route:** `GET /dashboard` — total email count, attachment statistics, 5 most recent emails
+- **CSS Polish:**
+  - Removed legacy CSS (search-bar, search-input, search-btn, generic card class)
+  - Added glass nav border-bottom definition
+  - Tightened email card gap: 6px → 2px
+  - Added structured metadata display styles
+  - New dashboard responsive grid (3-col desktop → 1-col mobile)
+
+**Rationale:**
+1. Filters keep templates clean and DRY (reusable across all templates)
+2. Both field types supported transparently — no fixture rewrites needed
+3. Dashboard provides new value-add without duplicating inbox functionality
+4. CSS cleanup removes technical debt while maintaining design fidelity
+
+**Impact:**
+- **Kane:** Test suite unaffected — filters handle existing string-form fixtures. Consider adding object-form fixtures for full coverage.
+- **Ripley:** No infrastructure changes needed. Dashboard uses existing Cosmos query.
+- **Test Status:** All 30 tests passing — no regression.
+
+**Files Modified:**
+- `web-app/app.py` — 5 new template filters, dashboard route
+- `web-app/templates/base.html` — Dashboard nav link
+- `web-app/templates/emails.html` — Uses filters for `from` extraction
+- `web-app/templates/email_detail.html` — Structured metadata with filters
+- `web-app/templates/dashboard.html` — New template
+- `web-app/static/css/style.css` — Polish and dashboard styles
+
+---
+
 ### Container Registry Migration — Ripley
 
 **Date:** 2025-01-20 | **Status:** Approved
@@ -277,6 +323,51 @@ Migrate from Azure Container Registry (ACR) to GitHub Packages (ghcr.io) for con
 - `web-app/app.py` — error handling needed
 - `web-app/templates/email_detail.html` — XSS sanitization needed
 - `web-app/requirements.txt` — azure-cosmos version constraint
+
+---
+
+### API Connection Endpoint Resolution Fix — Ripley
+
+**Date:** 2026-04-20 | **Status:** Applied
+
+**Problem:**
+Both managed API connections (Blob Storage and Cosmos DB) failed:
+- **Blob:** Unauthorized errors — connector didn't know which storage account to target
+- **Cosmos DB:** 502 BadGateway (timeout) — connector couldn't resolve the Cosmos account
+
+**Root Cause:**
+`workflow.json` used the literal placeholder `AccountNameFromSettings` in the action paths for both connectors. Managed API connectors resolve the **target account from the action path** (not from connection resource properties). When deployed programmatically, the placeholder was never substituted with actual account names.
+
+**Solution:**
+1. **`logic-app/workflow.json`** — Replaced hardcoded placeholder with deploy-time tokens:
+   - Blob path: `AccountNameFromSettings` → `__STORAGE_ACCOUNT__`
+   - Cosmos path: `AccountNameFromSettings` → `__COSMOS_ACCOUNT__`
+
+2. **`infrastructure/deploy.sh`** — Added `sed` substitution after reading workflow template:
+   - `sed "s/__STORAGE_ACCOUNT__/$STORAGE_ACCOUNT/g"` before deployment
+   - `sed "s/__COSMOS_ACCOUNT__/$COSMOS_ACCOUNT/g"` before deployment
+
+3. **`infrastructure/redeploy-logic-app.sh`** — Applied same `sed` substitution pattern:
+   - Added `COSMOS_ACCOUNT` and `STORAGE_ACCOUNT` config variables
+   - Enables quick workflow iteration with correct account resolution
+
+**Pattern Established for Consumption Logic Apps:**
+- **Connection resource:** Minimal — just `api` ID + `displayName`. No account parameters needed.
+- **MI authentication:** Declared in Logic App `$connections` block via `connectionProperties.authentication.type: ManagedServiceIdentity`
+- **Account targeting:** Handled by the **action path** in the workflow definition (the account name in the URL path)
+- **Template strategy:** Use `__PLACEHOLDER__` tokens, substitute at deploy time with `sed`
+
+**Impact:**
+- ✅ Blob Storage actions now correctly target the storage account
+- ✅ Cosmos DB actions now correctly target the Cosmos account — resolves 502 BadGateway
+- ✅ No changes to connection resources, role assignments, or `$connections` config
+- ✅ Deployment script is now idempotent and repeatable
+- ✅ Future workflow iterations (via redeploy script) use same pattern
+
+**Files Modified:**
+- `logic-app/workflow.json` — Replaced placeholders with tokens
+- `infrastructure/deploy.sh` — Added sed substitution logic
+- `infrastructure/redeploy-logic-app.sh` — Added same substitution + config variables
 
 ---
 

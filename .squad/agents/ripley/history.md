@@ -147,3 +147,16 @@
 - **Key insight:** `parameterValueSet` with `managedIdentityAuth` caused InternalServerError for blob; keeping connection resources minimal (api + displayName only) and relying on correct action paths is the safest pattern.
 - **Key files:** `logic-app/workflow.json`, `infrastructure/deploy.sh`, `infrastructure/redeploy-logic-app.sh`
 - **Decision doc:** `.squad/decisions/inbox/ripley-connection-endpoints.md`
+
+---
+
+### Cross-Team Update from Lambert (2026-04-20)
+
+**✅ UI REFRESH: Data Model Compatibility Solution**
+- **Change:** Lambert implemented Jinja2 template filters to handle polymorphic Cosmos DB field types
+- **What happened:** Your Logic App fix changed `from` field type from string to JSON object. Templates needed updates to handle both old and new formats transparently.
+- **Solution:** Added 5 template filters (`extract_from`, `extract_from_display`, `extract_from_initial`, `extract_body`, `extract_recipients`) that normalize field access across all templates
+- **Your Action:** No code changes needed in Logic App. Web app now handles both data formats transparently.
+- **Impact:** Frontend reliability — dashboard and detail pages render correctly with properly-typed Cosmos data
+- **New Feature:** Dashboard route added (`GET /dashboard`) with email statistics
+- **Test Status:** All 30 tests still passing (Lambert confirmed)

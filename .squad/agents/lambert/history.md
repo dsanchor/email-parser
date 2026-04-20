@@ -93,3 +93,15 @@
   - Added full dashboard styles with stat cards, responsive grid
   - Dashboard responsive: 3-col → 1-col stats on mobile
 - **All 30 tests passing — no regression**
+
+---
+
+### Cross-Team Update from Ripley (2026-04-20)
+
+**⚠️ INFRASTRUCTURE UPDATE: AccountNameFromSettings Fix**
+- **Change:** Ripley fixed Logic App workflow to substitute account name placeholders at deploy time
+- **What happened:** Managed API connections (Blob, Cosmos) were failing because `workflow.json` contained literal `AccountNameFromSettings` placeholder instead of actual account names
+- **Solution:** Deploy script now uses `sed` to substitute `__STORAGE_ACCOUNT__` and `__COSMOS_ACCOUNT__` tokens before deployment
+- **Your Action:** No code changes needed. Dashboard and templates will now receive data correctly from properly-configured Cosmos DB.
+- **Impact:** Infrastructure reliability — Blob Storage and Cosmos DB actions now resolve to correct accounts
+- **Test Status:** All 30 tests still passing (verify with `cd web-app && python -m pytest ../tests/ -v`)
