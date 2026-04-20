@@ -32,7 +32,7 @@
 | Logic App | Cosmos DB | Cosmos DB Built-in Data Contributor | 00000000-0000-0000-0000-000000000002 |
 | Container App | Storage | Storage Blob Data Reader | 2a2b9908-6ea1-4ae2-8e65-a410df84e7d1 |
 | Container App | Cosmos DB | Cosmos DB Built-in Data Reader | 00000000-0000-0000-0000-000000000001 |
-| Container App | ACR | AcrPull | (standard) |
+| Container App | ghcr.io | (pull via GHCR credentials on Container App) | — |
 
 #### Web Framework
 - **Recommendation: FastAPI** (Python 3.12)

@@ -4,7 +4,7 @@ set -euo pipefail
 ###############################################################################
 # Email Parser — Azure Infrastructure Deployment
 # Provisions: Resource Group, Cosmos DB, Storage, Logic App Standard,
-#             Container Registry, Container Apps, Managed Identity roles
+#             Container Apps, Managed Identity roles
 ###############################################################################
 
 # ── Configuration ────────────────────────────────────────────────────────────
@@ -17,7 +17,6 @@ STORAGE_ACCOUNT="${STORAGE_ACCOUNT:-emailparserstor}"
 BLOB_CONTAINER="email-attachments"
 APP_SERVICE_PLAN="${APP_SERVICE_PLAN:-email-parser-asp}"
 LOGIC_APP="${LOGIC_APP:-email-parser-logic}"
-ACR_NAME="${ACR_NAME:-emailparseracr}"
 CONTAINER_ENV="${CONTAINER_ENV:-email-parser-env}"
 CONTAINER_APP="${CONTAINER_APP:-email-parser-app}"
 
@@ -31,7 +30,6 @@ echo "  Location:        $LOCATION"
 echo "  Cosmos Account:  $COSMOS_ACCOUNT"
 echo "  Storage Account: $STORAGE_ACCOUNT"
 echo "  Logic App:       $LOGIC_APP"
-echo "  ACR:             $ACR_NAME"
 echo "  Container App:   $CONTAINER_APP"
 echo ""
 
@@ -119,15 +117,6 @@ LOGIC_APP_PRINCIPAL_ID=$(az webapp identity show \
 
 echo "  Logic App MI Principal ID: $LOGIC_APP_PRINCIPAL_ID"
 
-# ── Azure Container Registry ────────────────────────────────────────────────
-echo "▸ Creating Azure Container Registry (Basic)..."
-az acr create \
-  --name "$ACR_NAME" \
-  --resource-group "$RESOURCE_GROUP" \
-  --sku Basic \
-  --admin-enabled false \
-  --output none
-
 # ── Container Apps Environment ───────────────────────────────────────────────
 echo "▸ Creating Container Apps Environment..."
 az containerapp env create \
@@ -137,11 +126,6 @@ az containerapp env create \
   --output none
 
 # ── Container App ────────────────────────────────────────────────────────────
-ACR_LOGIN_SERVER=$(az acr show \
-  --name "$ACR_NAME" \
-  --resource-group "$RESOURCE_GROUP" \
-  --query loginServer --output tsv)
-
 COSMOS_ENDPOINT=$(az cosmosdb show \
   --name "$COSMOS_ACCOUNT" \
   --resource-group "$RESOURCE_GROUP" \
@@ -149,7 +133,7 @@ COSMOS_ENDPOINT=$(az cosmosdb show \
 
 STORAGE_ACCOUNT_URL="https://${STORAGE_ACCOUNT}.blob.core.windows.net"
 
-echo "▸ Creating Container App..."
+echo "▸ Creating Container App (with placeholder image)..."
 az containerapp create \
   --name "$CONTAINER_APP" \
   --resource-group "$RESOURCE_GROUP" \
@@ -160,7 +144,6 @@ az containerapp create \
   --min-replicas 0 \
   --max-replicas 3 \
   --system-assigned \
-  --registry-server "$ACR_LOGIN_SERVER" \
   --env-vars \
     "COSMOS_ENDPOINT=${COSMOS_ENDPOINT}" \
     "COSMOS_DATABASE=${COSMOS_DB}" \
@@ -226,20 +209,6 @@ az cosmosdb sql role assignment create \
   --role-definition-id "00000000-0000-0000-0000-000000000001" \
   --principal-id "$CONTAINER_APP_PRINCIPAL_ID" \
   --scope "/" \
-  --output none 2>/dev/null || echo "    (already assigned)"
-
-# Container App MI → AcrPull (pull images from ACR)
-echo "  ▸ Container App → AcrPull..."
-ACR_RESOURCE_ID=$(az acr show \
-  --name "$ACR_NAME" \
-  --resource-group "$RESOURCE_GROUP" \
-  --query id --output tsv)
-
-az role assignment create \
-  --assignee-object-id "$CONTAINER_APP_PRINCIPAL_ID" \
-  --assignee-principal-type ServicePrincipal \
-  --role "AcrPull" \
-  --scope "$ACR_RESOURCE_ID" \
   --output none 2>/dev/null || echo "    (already assigned)"
 
 # ── API Connections for Logic App ────────────────────────────────────────────
@@ -362,7 +331,6 @@ echo "  Storage Account:     $STORAGE_ACCOUNT"
 echo "  Blob Container:      $BLOB_CONTAINER"
 echo "  Logic App:           $LOGIC_APP"
 echo "  Logic App URL:       https://$LOGIC_APP_URL"
-echo "  ACR:                 $ACR_LOGIN_SERVER"
 echo "  Container App:       $CONTAINER_APP"
 echo "  Container App URL:   https://$CONTAINER_APP_URL"
 echo ""
@@ -378,5 +346,10 @@ echo "⚠  Next steps:"
 echo "  1. Authorize the Office 365 API connection in the Azure Portal"
 echo "     (requires interactive OAuth consent)"
 echo "  2. Deploy the Logic App workflow from logic-app/"
-echo "  3. Build and push the container image to $ACR_LOGIN_SERVER"
-echo "  4. Update the Container App image reference"
+echo "  3. Push web-app changes to main branch to trigger GitHub Actions build"
+echo "     (or trigger manually via workflow_dispatch)"
+echo "  4. After GH Actions builds the image, update the Container App:"
+echo "     az containerapp update \\"
+echo "       --resource-group $RESOURCE_GROUP \\"
+echo "       --name $CONTAINER_APP \\"
+echo "       --image ghcr.io/<owner>/<repo>/email-parser-web:latest"

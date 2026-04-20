@@ -34,7 +34,7 @@ chmod +x infrastructure/deploy.sh
 ./infrastructure/deploy.sh
 ```
 
-The script creates all Azure resources: Cosmos DB (serverless), Storage Account, Logic App Standard, Container Registry, Container Apps, and all managed identity role assignments.
+The script creates all Azure resources: Cosmos DB (serverless), Storage Account, Logic App Standard, Container Apps, and all managed identity role assignments.
 
 ### 2. Deploy the Logic App Workflow
 
@@ -63,23 +63,33 @@ az logicapp deployment source config-zip \
 
 ### 4. Build and Deploy the Web App
 
+The web app is automatically built and pushed to GitHub Packages (ghcr.io) via GitHub Actions whenever changes to `web-app/` are pushed to `main`.
+
+**Option A: Automatic Build (recommended)**
+
 ```bash
-cd web-app
+# Make changes to web-app/, commit, and push to main
+git add web-app/
+git commit -m "Update web app"
+git push origin main
 
-# Build the Docker image
-docker build -t email-parser-web .
-
-# Tag and push to ACR
-az acr login --name <your-acr-name>
-docker tag email-parser-web <your-acr-name>.azurecr.io/email-parser-web:latest
-docker push <your-acr-name>.azurecr.io/email-parser-web:latest
-
-# Update the Container App
-az containerapp update \
-  --resource-group rg-email-parser \
-  --name <your-container-app-name> \
-  --image <your-acr-name>.azurecr.io/email-parser-web:latest
+# GitHub Actions will build and push ghcr.io/<owner>/<repo>/email-parser-web:latest
 ```
+
+**Option B: Manual Trigger**
+
+Go to the **Actions** tab in GitHub, select **Build and Push Container Image**, and click **Run workflow**.
+
+**After the build completes, update the Container App:**
+
+```bash
+az containerapp update \
+  --resource-group email-parser-rg \
+  --name <your-container-app-name> \
+  --image ghcr.io/<owner>/<repo>/email-parser-web:latest
+```
+
+> **Note:** Replace `<owner>/<repo>` with your GitHub repository path (e.g., `dsanchor/email-parser`).
 
 ## Project Structure
 

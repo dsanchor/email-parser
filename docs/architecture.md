@@ -247,7 +247,7 @@ All service-to-service communication uses Azure Managed Identities. **Zero conne
 
 **Runtime:** Python 3.12 + FastAPI
 **Deployment:** Azure Container Apps (with system-assigned managed identity)
-**Container Registry:** Azure Container Registry (ACR)
+**Container Registry:** GitHub Packages (ghcr.io)
 
 ### Pages
 
@@ -286,7 +286,7 @@ All service-to-service communication uses Azure Managed Identities. **Zero conne
 │ ✓ Zero connection strings in config/code     │
 │ ✓ Cosmos DB data-plane RBAC (not keys)       │
 │ ✓ Blob Storage data-plane RBAC (not keys)    │
-│ ✓ ACR pull via managed identity              │
+│ ✓ Container images from GitHub Packages      │
 │ ✓ HTTPS everywhere                           │
 │ ✓ O365 connector: OAuth2 user consent only   │
 │ ✗ No shared access signatures (SAS)          │
@@ -308,14 +308,18 @@ All service-to-service communication uses Azure Managed Identities. **Zero conne
 │  ├── Cosmos DB Account (serverless) + Database + Container       │
 │  ├── Storage Account + Blob Container                            │
 │  ├── App Service Plan (WS1) + Logic App Standard                 │
-│  ├── Azure Container Registry                                    │
 │  ├── Container Apps Environment + Container App                  │
 │  └── Managed Identity Role Assignments (4 assignments)           │
+│                                                                  │
+│  .github/workflows/build-push.yml                                │
+│  ├── Triggered on push to main (web-app/ changes)               │
+│  ├── Build Docker image from web-app/Dockerfile                 │
+│  └── Push to ghcr.io/<owner>/<repo>/email-parser-web            │
 │                                                                  │
 │  Post-deploy (manual):                                           │
 │  ├── Deploy Logic App workflow (logic-app/workflow.json)         │
 │  ├── Configure O365 connector (interactive OAuth consent)        │
-│  └── Build & push web-app Docker image to ACR                   │
+│  └── Update Container App with ghcr.io image                    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
