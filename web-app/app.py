@@ -2,7 +2,6 @@
 
 import logging
 import os
-import math
 from datetime import datetime
 
 import bleach
@@ -28,7 +27,7 @@ STORAGE_ACCOUNT_URL = os.environ.get("STORAGE_ACCOUNT_URL", "")
 STORAGE_CONTAINER = os.environ.get("STORAGE_CONTAINER", "email-attachments")
 STORAGE_CONNECTION_STRING = os.environ.get("STORAGE_CONNECTION_STRING", "")  # optional – local dev
 
-PAGE_SIZE = 20
+# No pagination — dataset is small, load all emails
 
 # ---------------------------------------------------------------------------
 # Azure clients (lazy init)
@@ -205,11 +204,10 @@ async def health():
 
 
 @app.get("/emails", response_class=HTMLResponse)
-async def email_list(request: Request, page: int = Query(1, ge=1), q: str = Query("")):
+async def email_list(request: Request, q: str = Query("")):
     try:
         container = _get_cosmos_container()
 
-        # Build query
         if q:
             query_text = (
                 "SELECT * FROM c WHERE CONTAINS(LOWER(c.subject), LOWER(@q)) "
@@ -233,53 +231,13 @@ async def email_list(request: Request, page: int = Query(1, ge=1), q: str = Quer
             status_code=503,
         )
 
-    total = len(items)
-    total_pages = max(1, math.ceil(total / PAGE_SIZE))
-    page = min(page, total_pages)
-    offset = (page - 1) * PAGE_SIZE
-    page_items = items[offset : offset + PAGE_SIZE]
-
     return templates.TemplateResponse(
         request,
         "emails.html",
         {
-            "emails": page_items,
-            "page": page,
-            "total_pages": total_pages,
-            "total": total,
+            "emails": items,
+            "total": len(items),
             "q": q,
-        },
-    )
-
-
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    try:
-        container = _get_cosmos_container()
-        query_text = "SELECT * FROM c ORDER BY c.receivedDateTime DESC"
-        items = list(
-            container.query_items(query=query_text, parameters=[], enable_cross_partition_query=True)
-        )
-    except Exception:
-        logger.exception("Failed to fetch dashboard data from Cosmos DB")
-        return templates.TemplateResponse(
-            request,
-            "error.html",
-            {"code": 503, "message": "Unable to load dashboard. Please try again later."},
-            status_code=503,
-        )
-
-    total = len(items)
-    recent = items[:5]
-    with_attachments = sum(1 for e in items if e.get("hasAttachments"))
-
-    return templates.TemplateResponse(
-        request,
-        "dashboard.html",
-        {
-            "total": total,
-            "recent": recent,
-            "with_attachments": with_attachments,
         },
     )
 

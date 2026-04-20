@@ -2,30 +2,17 @@
 {% block title %}{{ code }} — Email Parser{% endblock %}
 
 {% block content %}
-{# Dark hero with large error code #}
-<section class="error-hero">
+<div class="error">
   <div class="container">
-    <div class="error-hero__code">{{ code }}</div>
-    <div class="error-hero__label">
+    <div class="error__code">{{ code }}</div>
+    <div class="error__label">
       {% if code == 404 %}Page Not Found{% elif code == 500 %}Server Error{% elif code == 503 %}Service Unavailable{% else %}Something went wrong{% endif %}
     </div>
-  </div>
-</section>
-
-{# Light section with message and actions #}
-<section class="error-body">
-  <div class="container">
-    <p class="error-body__message">{{ message }}</p>
-    <div class="error-body__actions">
-      <a href="javascript:location.reload()" class="btn-primary">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:6px"><polyline points="23,4 23,10 17,10"/><path d="M20.49,15a9,9,0,1,1-2.12-9.36L23,10"/></svg>
-        Try again
-      </a>
-      <a href="/emails" class="btn-pill">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15,18 9,12 15,6"/></svg>
-        Back to Inbox
-      </a>
+    <p class="error__message">{{ message }}</p>
+    <div class="error__actions">
+      <a href="javascript:location.reload()" class="btn">Try again</a>
+      <a href="/emails" class="btn btn--outline">Back to Inbox</a>
     </div>
   </div>
-</section>
+</div>
 {% endblock %}

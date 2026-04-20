@@ -2,93 +2,62 @@
 {% block title %}{{ email.subject }} — Email Parser{% endblock %}
 
 {% block content %}
-{# Dark hero — cinematic subject display #}
-<section class="detail-hero">
+<div class="detail">
   <div class="container">
-    <a href="/emails{% if request.query_params.get('q') %}?q={{ request.query_params.get('q') }}{% endif %}" class="detail-hero__back">
+    <a href="/emails{% if request.query_params.get('q') %}?q={{ request.query_params.get('q') }}{% endif %}" class="detail__back">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15,18 9,12 15,6"/></svg>
-      Inbox
+      Back to Inbox
     </a>
-    <h1 class="detail-hero__subject">{{ email.subject }}</h1>
-    <p class="detail-hero__subtitle">{{ email.receivedDateTime | format_date }}</p>
-  </div>
-</section>
 
-{# Metadata — light section #}
-<section class="detail-meta">
-  <div class="container">
-    <div class="detail-meta__grid">
-      <div class="detail-meta__item">
-        <div class="detail-meta__label">From</div>
-        {% set from_info = email.get('from', 'Unknown') | extract_from %}
-        <div class="detail-meta__value">
-          {% if from_info.name %}
-            <span class="detail-meta__name">{{ from_info.name }}</span>
-            <span class="detail-meta__secondary">{{ from_info.address }}</span>
-          {% else %}
-            {{ from_info.address or 'Unknown' }}
-          {% endif %}
+    <header class="detail__header">
+      <h1 class="detail__subject">{{ email.subject }}</h1>
+      <div class="detail__meta">
+        <div class="detail__meta-row">
+          <span class="detail__label">From</span>
+          {% set from_info = email.get('from', 'Unknown') | extract_from %}
+          <span class="detail__value">
+            {% if from_info.name %}
+              {{ from_info.name }} <span class="detail__secondary">&lt;{{ from_info.address }}&gt;</span>
+            {% else %}
+              {{ from_info.address or 'Unknown' }}
+            {% endif %}
+          </span>
+        </div>
+        <div class="detail__meta-row">
+          <span class="detail__label">To</span>
+          <span class="detail__value">{{ email.get('toRecipients', []) | extract_recipients }}</span>
+        </div>
+        <div class="detail__meta-row">
+          <span class="detail__label">Date</span>
+          <span class="detail__value">{{ email.receivedDateTime | format_date }}</span>
         </div>
       </div>
-      <div class="detail-meta__item">
-        <div class="detail-meta__label">To</div>
-        <div class="detail-meta__value">{{ email.get('toRecipients', []) | extract_recipients }}</div>
-      </div>
-      <div class="detail-meta__item">
-        <div class="detail-meta__label">Date</div>
-        <div class="detail-meta__value">{{ email.receivedDateTime | format_date }}</div>
-      </div>
-      {% if email.get('hasAttachments') %}
-      <div class="detail-meta__item">
-        <div class="detail-meta__label">Attachments</div>
-        <div class="detail-meta__value">{{ email.get('attachments', []) | length }} file{{ 's' if email.get('attachments', []) | length != 1 else '' }}</div>
-      </div>
-      {% endif %}
-    </div>
-  </div>
-</section>
+    </header>
 
-{# Email body — white section #}
-<section class="email-body-section">
-  <div class="container">
-    <div class="email-body">
+    <div class="detail__body">
       {{ email.get('body', '<p>No content</p>') | safe }}
     </div>
-  </div>
-</section>
 
-{# Attachments — dark section for contrast #}
-{% if email.get('attachments') %}
-<section class="attachments-section">
-  <div class="container">
-    <h2 class="attachments-section__title">Attachments</h2>
-    <div class="attachment-grid">
-      {% for att in email.attachments %}
-      <a href="/emails/{{ email.id }}/attachments/{{ att.name }}" class="attachment-card">
-        <div class="attachment-card__icon" aria-hidden="true">
-          {% set ext = att.name.rsplit('.', 1)[-1].lower() if '.' in att.name else '' %}
-          {% if ext in ['pdf'] %}
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14,2 L6,2 C4.9,2 4,2.9 4,4 L4,20 C4,21.1 4.9,22 6,22 L18,22 C19.1,22 20,21.1 20,20 L20,8 Z"/><polyline points="14,2 14,8 20,8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
-          {% elif ext in ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'] %}
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
-          {% elif ext in ['doc', 'docx'] %}
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14,2 L6,2 C4.9,2 4,2.9 4,4 L4,20 C4,21.1 4.9,22 6,22 L18,22 C19.1,22 20,21.1 20,20 L20,8 Z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
-          {% elif ext in ['xls', 'xlsx', 'csv'] %}
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14,2 L6,2 C4.9,2 4,2.9 4,4 L4,20 C4,21.1 4.9,22 6,22 L18,22 C19.1,22 20,21.1 20,20 L20,8 Z"/><polyline points="14,2 14,8 20,8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="12" y1="9" x2="12" y2="21"/></svg>
-          {% elif ext in ['zip', 'rar', '7z', 'tar', 'gz'] %}
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21,8 L21,21 C21,22.1 20.1,23 19,23 L5,23 C3.9,23 3,22.1 3,21 L3,3 C3,1.9 3.9,1 5,1 L16,1 Z"/><line x1="12" y1="1" x2="12" y2="8"/><rect x="10" y="10" width="4" height="4" rx="0.5"/></svg>
-          {% else %}
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14,2 L6,2 C4.9,2 4,2.9 4,4 L4,20 C4,21.1 4.9,22 6,22 L18,22 C19.1,22 20,21.1 20,20 L20,8 Z"/><polyline points="14,2 14,8 20,8"/></svg>
-          {% endif %}
-        </div>
-        <div class="attachment-card__name">{{ att.name }}</div>
-        <div class="attachment-card__meta">{{ att.get('contentType', '') }}</div>
-        <div class="attachment-card__size">{{ att.get('size', 0) | human_size }}</div>
-        <span class="attachment-card__action">Download</span>
-      </a>
-      {% endfor %}
+    {% if email.get('attachments') %}
+    <div class="detail__attachments">
+      <h2 class="detail__attachments-title">
+        Attachments
+        <span class="detail__attachments-count">{{ email.attachments | length }}</span>
+      </h2>
+      <div class="attachment-list">
+        {% for att in email.attachments %}
+        <a href="/emails/{{ email.id }}/attachments/{{ att.name }}" class="attachment">
+          <svg class="attachment__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14,2 L6,2 C4.9,2 4,2.9 4,4 L4,20 C4,21.1 4.9,22 6,22 L18,22 C19.1,22 20,21.1 20,20 L20,8 Z"/><polyline points="14,2 14,8 20,8"/>
+          </svg>
+          <span class="attachment__name">{{ att.name }}</span>
+          <span class="attachment__size">{{ att.get('size', 0) | human_size }}</span>
+          <span class="attachment__download">Download</span>
+        </a>
+        {% endfor %}
+      </div>
     </div>
+    {% endif %}
   </div>
-</section>
-{% endif %}
+</div>
 {% endblock %}

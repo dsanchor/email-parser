@@ -2,100 +2,71 @@
 {% block title %}Inbox — Email Parser{% endblock %}
 
 {% block content %}
-{# Dark hero section — cinematic inbox header #}
-<section class="inbox-hero">
+<div class="inbox">
   <div class="container">
-    <div class="inbox-hero__content">
-      <h1 class="inbox-hero__title">Inbox</h1>
-      <p class="inbox-hero__count">
-        {% if emails %}
-          {{ total }} email{{ 's' if total != 1 else '' }}{% if q %} matching "{{ q }}"{% endif %}
-        {% else %}
-          {% if q %}No results{% else %}Empty{% endif %}
-        {% endif %}
-      </p>
-    </div>
-    <form class="inbox-hero__search" action="/emails" method="get">
-      <div class="search-field">
-        <svg class="search-field__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <div class="inbox__header">
+      <div class="inbox__title-row">
+        <h1 class="inbox__title">Inbox</h1>
+        <span class="inbox__count">{{ total }} email{{ 's' if total != 1 else '' }}{% if q %} matching "{{ q }}"{% endif %}</span>
+      </div>
+      <form class="inbox__search" action="/emails" method="get">
+        <svg class="inbox__search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="text" name="q" class="search-field__input" placeholder="Search by subject or sender…" value="{{ q }}" aria-label="Search emails">
-      </div>
-      <button type="submit" class="search-field__btn" aria-label="Search">Search</button>
-    </form>
-  </div>
-</section>
+        <input type="text" name="q" class="inbox__search-input" placeholder="Filter emails…" value="{{ q }}" aria-label="Filter emails">
+        {% if q %}
+        <a href="/emails" class="inbox__search-clear" aria-label="Clear filter">&times;</a>
+        {% endif %}
+      </form>
+    </div>
 
-{# Email list — light section #}
-<section class="inbox-list">
-  <div class="container">
     {% if emails %}
-    <div class="email-list">
-      {% for email in emails %}
-      <a href="/emails/{{ email.id }}" class="email-card">
-        <div class="email-card__left">
-          <div class="email-card__avatar" aria-hidden="true">
-            {{ email.get('from', 'U') | extract_from_initial }}
-          </div>
-        </div>
-        <div class="email-card__body">
-          <div class="email-card__header">
-            <span class="email-card__from">{{ email.get('from', 'Unknown') | extract_from_display }}</span>
-            <span class="email-card__date">{{ email.receivedDateTime | format_date }}</span>
-          </div>
-          <div class="email-card__subject">{{ email.subject }}</div>
-          <div class="email-card__preview">{{ email.get('bodyPreview', '') }}</div>
-          {% if email.get('hasAttachments') %}
-          <div class="email-card__footer">
-            <span class="badge">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <div class="table-wrap">
+      <table class="email-table" id="emailTable">
+        <thead>
+          <tr>
+            <th class="email-table__th email-table__th--date sortable" data-col="0" data-type="date">
+              Date <span class="sort-arrow sort-arrow--active">▼</span>
+            </th>
+            <th class="email-table__th email-table__th--from sortable" data-col="1" data-type="text">
+              From <span class="sort-arrow"></span>
+            </th>
+            <th class="email-table__th email-table__th--subject sortable" data-col="2" data-type="text">
+              Subject <span class="sort-arrow"></span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for email in emails %}
+          <tr class="email-table__row" onclick="window.location='/emails/{{ email.id }}'" data-href="/emails/{{ email.id }}">
+            <td class="email-table__td email-table__td--date" data-sort="{{ email.receivedDateTime or '' }}">
+              {{ email.receivedDateTime | format_date }}
+            </td>
+            <td class="email-table__td email-table__td--from">
+              {{ email.get('from', 'Unknown') | extract_from_display }}
+            </td>
+            <td class="email-table__td email-table__td--subject">
+              <span class="email-table__subject-text">{{ email.subject }}</span>
+              {% if email.get('hasAttachments') %}
+              <svg class="email-table__clip" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Has attachments">
                 <path d="M21.44,11.05l-9.19,9.19a6,6,0,0,1-8.49-8.49l9.19-9.19a4,4,0,0,1,5.66,5.66l-9.2,9.19a2,2,0,0,1-2.83-2.83l8.49-8.48"/>
               </svg>
-              {{ email.get('attachments', []) | length }} attachment{{ 's' if email.get('attachments', []) | length != 1 else '' }}
-            </span>
-          </div>
-          {% endif %}
-        </div>
-      </a>
-      {% endfor %}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-
-    {% if total_pages > 1 %}
-    <div class="pagination">
-      {% if page > 1 %}
-      <a href="/emails?page={{ page - 1 }}{% if q %}&q={{ q }}{% endif %}" class="btn-pill">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15,18 9,12 15,6"/></svg>
-        Previous
-      </a>
-      {% endif %}
-      <span class="pagination__info">Page {{ page }} of {{ total_pages }}</span>
-      {% if page < total_pages %}
-      <a href="/emails?page={{ page + 1 }}{% if q %}&q={{ q }}{% endif %}" class="btn-pill">
-        Next
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9,6 15,12 9,18"/></svg>
-      </a>
-      {% endif %}
-    </div>
-    {% endif %}
-
     {% else %}
-    <div class="empty-state">
-      <svg class="empty-state__icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <polyline points="22,12 16,12 14,15 10,15 8,12 2,12"/>
-        <path d="M5.45,5.11 2,12 2,18 C2,19.1 2.9,20 4,20 L20,20 C21.1,20 22,19.1 22,18 L22,12 18.55,5.11 C18.22,4.45 17.55,4 16.82,4 L7.18,4 C6.45,4 5.78,4.45 5.45,5.11Z"/>
-      </svg>
-      <div class="empty-state__title">
-        {% if q %}No results found{% else %}No emails yet{% endif %}
-      </div>
-      <div class="empty-state__text">
-        {% if q %}Try a different search term{% else %}Emails will appear here when they arrive{% endif %}
-      </div>
-      {% if q %}
-      <a href="/emails" class="btn-pill" style="margin-top: 20px;">Clear search</a>
-      {% endif %}
+    <div class="empty">
+      <p class="empty__title">{% if q %}No emails match your filter{% else %}No emails yet{% endif %}</p>
+      <p class="empty__text">{% if q %}Try a different search term{% else %}Emails will appear here when they arrive{% endif %}</p>
+      {% if q %}<a href="/emails" class="btn">Clear filter</a>{% endif %}
     </div>
     {% endif %}
   </div>
-</section>
+</div>
+
+<script src="{{ url_for('static', path='js/sort.js') }}"></script>
 {% endblock %}
