@@ -187,11 +187,6 @@ az resource create \
           \"office365\": {
             \"connectionId\": \"$OFFICE365_CONN_ID\",
             \"connectionName\": \"office365\",
-            \"connectionProperties\": {
-              \"authentication\": {
-                \"type\": \"ManagedServiceIdentity\"
-              }
-            },
             \"id\": \"$OFFICE365_API_ID\"
           },
           \"azureblob\": {
