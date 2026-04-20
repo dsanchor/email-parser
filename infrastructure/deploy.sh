@@ -9,7 +9,7 @@ set -euo pipefail
 
 # ── Configuration ────────────────────────────────────────────────────────────
 RESOURCE_GROUP="${RESOURCE_GROUP:-email-parser-rg}"
-LOCATION="${LOCATION:-eastus}"
+LOCATION="${LOCATION:-swedencentral}"
 COSMOS_ACCOUNT="${COSMOS_ACCOUNT:-email-parser-cosmos}"
 COSMOS_DB="email-parser-db"
 COSMOS_CONTAINER="emails"
@@ -48,10 +48,10 @@ az cosmosdb create \
   --name "$COSMOS_ACCOUNT" \
   --resource-group "$RESOURCE_GROUP" \
   --kind GlobalDocumentDB \
-  --capabilities EnableServerless \
+  --capacity-mode Serverless \
   --default-consistency-level Session \
   --locations regionName="$LOCATION" failoverPriority=0 isZoneRedundant=false \
-  --output none
+  -o none
 
 echo "▸ Creating Cosmos DB database..."
 az cosmosdb sql database create \
