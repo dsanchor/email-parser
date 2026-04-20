@@ -19,7 +19,8 @@
             "importance": "Any",
             "fetchOnlyWithAttachment": false,
             "includeAttachments": true,
-            "folderPath": "Inbox"
+            "folderPath": "Inbox",
+            "subjectFilter": "Demo email"
           }
         },
         "subscribe": {
@@ -33,32 +34,20 @@
           "queries": {
             "importance": "Any",
             "fetchOnlyWithAttachment": false,
-            "folderPath": "Inbox"
+            "folderPath": "Inbox",
+            "subjectFilter": "Demo email"
           }
         }
       },
+      "conditions": [
+        {
+          "expression": "@startsWith(triggerBody()?['subject'], 'Demo email')"
+        }
+      ],
       "splitOn": "@triggerBody()?['value']"
     }
   },
   "actions": {
-    "Compose_Email_Metadata": {
-      "type": "Compose",
-      "inputs": {
-        "id": "@triggerBody()?['id']",
-        "messageId": "@triggerBody()?['internetMessageId']",
-        "subject": "@triggerBody()?['subject']",
-        "body": "@triggerBody()?['body']",
-        "bodyPreview": "@triggerBody()?['bodyPreview']",
-        "from": "@triggerBody()?['from']",
-        "toRecipients": "@triggerBody()?['toRecipients']",
-        "receivedDateTime": "@triggerBody()?['receivedDateTime']",
-        "importance": "@triggerBody()?['importance']",
-        "conversationId": "@triggerBody()?['conversationId']",
-        "hasAttachments": "@triggerBody()?['hasAttachments']",
-        "internetMessageId": "@triggerBody()?['internetMessageId']"
-      },
-      "runAfter": {}
-    },
     "Initialize_Attachments_Array": {
       "type": "InitializeVariable",
       "inputs": {
@@ -70,11 +59,7 @@
           }
         ]
       },
-      "runAfter": {
-        "Compose_Email_Metadata": [
-          "Succeeded"
-        ]
-      }
+      "runAfter": {}
     },
     "For_Each_Attachment": {
       "type": "Foreach",
@@ -102,7 +87,7 @@
             },
             "method": "post",
             "body": "@base64ToBinary(body('Get_Attachment_(V2)')?['contentBytes'])",
-            "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('AccountNameFromSettings'))}/files",
+            "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('__STORAGE_ACCOUNT__'))}/files",
             "queries": {
               "folderPath": "/email-attachments/@{encodeURIComponent(triggerBody()?['id'])}",
               "name": "@body('Get_Attachment_(V2)')?['name']",
@@ -155,11 +140,11 @@
         "method": "post",
         "body": {
           "id": "@{triggerBody()?['id']}",
-          "messageId": "@{triggerBody()?['internetMessageId']}",
+          "messageId": "@{coalesce(triggerBody()?['internetMessageId'], triggerBody()?['id'])}",
           "subject": "@{triggerBody()?['subject']}",
-          "body": "@{triggerBody()?['body']}",
+          "body": "@triggerBody()?['body']",
           "bodyPreview": "@{triggerBody()?['bodyPreview']}",
-          "from": "@{triggerBody()?['from']}",
+          "from": "@triggerBody()?['from']",
           "toRecipients": "@triggerBody()?['toRecipients']",
           "receivedDateTime": "@{triggerBody()?['receivedDateTime']}",
           "hasAttachments": "@triggerBody()?['hasAttachments']",
@@ -168,7 +153,7 @@
           "attachments": "@variables('attachments')",
           "processedAt": "@{utcNow()}"
         },
-        "path": "/v2/cosmosdb/@{encodeURIComponent('AccountNameFromSettings')}/dbs/@{encodeURIComponent('email-parser-db')}/colls/@{encodeURIComponent('emails')}/docs",
+        "path": "/v2/cosmosdb/@{encodeURIComponent('__COSMOS_ACCOUNT__')}/dbs/@{encodeURIComponent('email-parser-db')}/colls/@{encodeURIComponent('emails')}/docs",
         "headers": {
           "x-ms-documentdb-is-upsert": "True"
         }

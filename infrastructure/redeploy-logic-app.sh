@@ -12,6 +12,8 @@ set -euo pipefail
 RESOURCE_GROUP="${RESOURCE_GROUP:-email-parser-rg}"
 LOCATION="${LOCATION:-swedencentral}"
 LOGIC_APP="${LOGIC_APP:-email-parser-logic}"
+COSMOS_ACCOUNT="${COSMOS_ACCOUNT:-email-parser-cosmos}"
+STORAGE_ACCOUNT="${STORAGE_ACCOUNT:-emailparserstor}"
 
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║  Email Parser — Logic App Workflow Redeploy                  ║"
@@ -58,6 +60,9 @@ fi
 
 echo "▸ Reading workflow definition from logic-app/workflow.json..."
 WORKFLOW_DEFINITION=$(cat "$WORKFLOW_TEMPLATE")
+
+# Replace account name placeholders with actual values
+WORKFLOW_DEFINITION=$(echo "$WORKFLOW_DEFINITION" | sed "s/__STORAGE_ACCOUNT__/$STORAGE_ACCOUNT/g; s/__COSMOS_ACCOUNT__/$COSMOS_ACCOUNT/g")
 
 # ── Build and deploy the Logic App payload ───────────────────────────────────
 # Uses az rest PUT — same atomic deploy as deploy.sh (lines 178-226)

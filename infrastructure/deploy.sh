@@ -109,24 +109,19 @@ az resource create \
   --output none
 
 # Azure Blob Storage connection (managed identity)
-# Uses az rest (PUT) for explicit API version control — az resource create
-# can send to a wrong API version causing InternalServerError
+# MI auth is declared in the Logic App's $connections block, not here.
+# This matches the Cosmos DB connection pattern (which works).
 echo "  ▸ Azure Blob Storage connection (managed identity)..."
-az rest \
-  --method PUT \
-  --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Web/connections/azureblob?api-version=2016-06-01" \
-  --body "{
-    \"location\": \"$LOCATION\",
-    \"properties\": {
-      \"api\": {
-        \"id\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/azureblob\"
-      },
-      \"displayName\": \"Azure Blob Storage - Email Parser\",
-      \"parameterValueSet\": {
-        \"name\": \"managedIdentityAuth\",
-        \"values\": {}
-      }
-    }
+az resource create \
+  --resource-group "$RESOURCE_GROUP" \
+  --resource-type "Microsoft.Web/connections" \
+  --name "azureblob" \
+  --location "$LOCATION" \
+  --properties "{
+    \"api\": {
+      \"id\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/azureblob\"
+    },
+    \"displayName\": \"Azure Blob Storage - Email Parser\"
   }" \
   --output none
 
@@ -174,6 +169,9 @@ if [ ! -f "$WORKFLOW_TEMPLATE" ]; then
 fi
 
 WORKFLOW_DEFINITION=$(cat "$WORKFLOW_TEMPLATE")
+
+# Replace account name placeholders with actual values
+WORKFLOW_DEFINITION=$(echo "$WORKFLOW_DEFINITION" | sed "s/__STORAGE_ACCOUNT__/$STORAGE_ACCOUNT/g; s/__COSMOS_ACCOUNT__/$COSMOS_ACCOUNT/g")
 
 # Deploy Logic App Consumption with identity + workflow + MI-auth $connections
 # Uses az rest (PUT) so identity and MI-auth connections are created atomically
@@ -277,7 +275,7 @@ az containerapp create \
   --name "$CONTAINER_APP" \
   --resource-group "$RESOURCE_GROUP" \
   --environment "$CONTAINER_ENV" \
-  --image "mcr.microsoft.com/k8se/quickstart:latest" \
+  --image "ghcr.io/dsanchor/email-parser/email-parser-web:latest" \
   --target-port 8000 \
   --ingress external \
   --min-replicas 0 \

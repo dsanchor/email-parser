@@ -133,3 +133,17 @@
 - **Pattern:** For `managedIdentityAuth` connections, the `parameterValueSet.values` should be empty — storage account targeting is handled by the workflow actions, not the connection resource
 - **`redeploy-logic-app.sh`:** No changes needed — it doesn't create API connections
 - **Key files:** `infrastructure/deploy.sh`, `.gitignore`
+
+### Session: API Connection Endpoint Resolution — AccountNameFromSettings Fix
+- **Issue:** Blob (Unauthorized) and Cosmos DB (502 BadGateway/timeout) actions failed because the managed API connectors couldn't resolve which account to target
+- **Root cause:** `workflow.json` used the literal placeholder `AccountNameFromSettings` in the action paths for both blob and Cosmos connectors. The connector uses the account name in the path (not the connection resource properties) to determine which account to authenticate against.
+- **Fix applied:**
+  1. `logic-app/workflow.json` — replaced `AccountNameFromSettings` with deploy-time placeholders:
+     - Blob path: `__STORAGE_ACCOUNT__`
+     - Cosmos path: `__COSMOS_ACCOUNT__`
+  2. `infrastructure/deploy.sh` — added sed substitution after reading workflow template to replace `__STORAGE_ACCOUNT__` → `$STORAGE_ACCOUNT` and `__COSMOS_ACCOUNT__` → `$COSMOS_ACCOUNT`
+  3. `infrastructure/redeploy-logic-app.sh` — added same sed substitution + added `COSMOS_ACCOUNT` and `STORAGE_ACCOUNT` config variables (previously missing)
+- **Pattern:** Managed API connectors (blob, cosmosdb) resolve target accounts from the ACTION PATH, not from the connection resource parameters. The connection resource just needs `api` + `displayName`; MI auth is declared in the `$connections` block. The actual account routing comes from the path: `/v2/cosmosdb/{accountName}/dbs/...` and `/v2/datasets/{storageAccount}/files`.
+- **Key insight:** `parameterValueSet` with `managedIdentityAuth` caused InternalServerError for blob; keeping connection resources minimal (api + displayName only) and relying on correct action paths is the safest pattern.
+- **Key files:** `logic-app/workflow.json`, `infrastructure/deploy.sh`, `infrastructure/redeploy-logic-app.sh`
+- **Decision doc:** `.squad/decisions/inbox/ripley-connection-endpoints.md`
