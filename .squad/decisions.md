@@ -97,6 +97,44 @@ Ripley must configure Container Apps with these env vars and assign managed iden
 
 ---
 
+### Container Registry Migration — Ripley
+
+**Date:** 2025-01-20 | **Status:** Approved
+
+#### Decision
+Migrate from Azure Container Registry (ACR) to GitHub Packages (ghcr.io) for container image hosting.
+
+#### Rationale
+1. **Cost Efficiency**: ghcr.io free for public repos; eliminates ACR Basic tier (~$5/month)
+2. **Integrated CI/CD**: GitHub Actions natively supports ghcr.io via `GITHUB_TOKEN`
+3. **Simplified Infrastructure**: One less Azure resource to provision and maintain
+4. **Developer Experience**: Automated builds on push to main
+5. **Public Visibility**: Publicly accessible container images when needed
+
+#### Implementation
+- Removed ACR provisioning from `infrastructure/deploy.sh`
+- Created `.github/workflows/build-push.yml` for automated Docker builds and pushes
+- Updated `README.md` with new workflow instructions
+- Updated `docs/architecture.md` registry references
+
+#### Impact
+- **Ripley**: Deploy script simplified; Container App no longer needs AcrPull role
+- **Lambert**: No changes to web-app code or environment variables
+- **Kane**: No changes to test suite
+
+#### Security
+- Public images accessible if repo is public (matching Docker Hub model)
+- Private repos keep images private with authentication
+- GITHUB_TOKEN auto-rotated and scoped
+
+#### Affected Files
+- `infrastructure/deploy.sh` — removed ACR provisioning
+- `.github/workflows/build-push.yml` — new workflow
+- `README.md` — updated Quick Start
+- `docs/architecture.md` — updated registry and deployment sections
+
+---
+
 ### Test Suite and Quality Findings — Kane
 
 **Date:** 2025-07-18 | **Status:** Approved
