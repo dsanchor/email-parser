@@ -172,57 +172,60 @@ fi
 
 WORKFLOW_DEFINITION=$(cat "$WORKFLOW_TEMPLATE")
 
-# Deploy Logic App Consumption with workflow definition and $connections
-az resource create \
-  --resource-group "$RESOURCE_GROUP" \
-  --resource-type "Microsoft.Logic/workflows" \
-  --name "$LOGIC_APP" \
-  --location "$LOCATION" \
-  --properties "{
-    \"state\": \"Enabled\",
-    \"definition\": $WORKFLOW_DEFINITION,
-    \"parameters\": {
-      \"\$connections\": {
-        \"value\": {
-          \"office365\": {
-            \"connectionId\": \"$OFFICE365_CONN_ID\",
-            \"connectionName\": \"office365\",
-            \"id\": \"$OFFICE365_API_ID\"
+# Deploy Logic App Consumption with identity + workflow + MI-auth $connections
+# Uses az rest (PUT) so identity and MI-auth connections are created atomically
+# (creating without MI first would reject the MI-auth connectionProperties)
+cat > /tmp/logic-app-payload.json <<PAYLOAD
+{
+  "location": "$LOCATION",
+  "identity": {
+    "type": "SystemAssigned"
+  },
+  "properties": {
+    "state": "Enabled",
+    "definition": $WORKFLOW_DEFINITION,
+    "parameters": {
+      "\$connections": {
+        "value": {
+          "office365": {
+            "connectionId": "$OFFICE365_CONN_ID",
+            "connectionName": "office365",
+            "id": "$OFFICE365_API_ID"
           },
-          \"azureblob\": {
-            \"connectionId\": \"$AZUREBLOB_CONN_ID\",
-            \"connectionName\": \"azureblob\",
-            \"connectionProperties\": {
-              \"authentication\": {
-                \"type\": \"ManagedServiceIdentity\"
+          "azureblob": {
+            "connectionId": "$AZUREBLOB_CONN_ID",
+            "connectionName": "azureblob",
+            "connectionProperties": {
+              "authentication": {
+                "type": "ManagedServiceIdentity"
               }
             },
-            \"id\": \"$AZUREBLOB_API_ID\"
+            "id": "$AZUREBLOB_API_ID"
           },
-          \"cosmosdb\": {
-            \"connectionId\": \"$COSMOSDB_CONN_ID\",
-            \"connectionName\": \"cosmosdb\",
-            \"connectionProperties\": {
-              \"authentication\": {
-                \"type\": \"ManagedServiceIdentity\"
+          "cosmosdb": {
+            "connectionId": "$COSMOSDB_CONN_ID",
+            "connectionName": "cosmosdb",
+            "connectionProperties": {
+              "authentication": {
+                "type": "ManagedServiceIdentity"
               }
             },
-            \"id\": \"$COSMOSDB_API_ID\"
+            "id": "$COSMOSDB_API_ID"
           }
         }
       }
     }
-  }" \
+  }
+}
+PAYLOAD
+
+az rest \
+  --method PUT \
+  --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Logic/workflows/${LOGIC_APP}?api-version=2019-05-01" \
+  --body @/tmp/logic-app-payload.json \
   --output none
 
-# Enable system-assigned managed identity
-echo "▸ Enabling system-assigned managed identity on Logic App..."
-az resource update \
-  --resource-group "$RESOURCE_GROUP" \
-  --resource-type "Microsoft.Logic/workflows" \
-  --name "$LOGIC_APP" \
-  --set "identity={\"type\":\"SystemAssigned\"}" \
-  --output none
+rm -f /tmp/logic-app-payload.json
 
 LOGIC_APP_PRINCIPAL_ID=$(az resource show \
   --resource-group "$RESOURCE_GROUP" \
