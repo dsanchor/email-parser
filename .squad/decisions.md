@@ -20,10 +20,12 @@
 - All file types accepted — no content-type filtering
 
 #### Logic App Type
-- **Logic App Standard** (kind: `functionapp,workflowapp`) on WS1 App Service Plan
-- Stateful workflow for reliable delivery and retry support
-- System-assigned managed identity for Cosmos DB and Blob Storage
+- **Logic App (Consumption)** — Serverless, no backing app service plan
+- Managed identity (system-assigned) for Cosmos DB and Blob Storage
 - Office 365 Outlook connector with OAuth2
+- Workflow definition embedded in ARM resource (no separate connections.json deployment)
+
+**Note:** Migrated from Logic App Standard (2025-07-20) to enforce zero shared keys per security policy. Standard tier required storage account keys; Consumption is serverless.
 
 #### Managed Identity Roles
 | Service | Target | Role | Role ID |
@@ -94,6 +96,112 @@ FastAPI + Jinja2 server-rendered app (no SPA framework). Containerized with pyth
 
 #### Impact
 Ripley must configure Container Apps with these env vars and assign managed identity roles (Cosmos DB Data Reader, Storage Blob Data Reader).
+
+---
+
+### Logic App Workflow Fixes — Ripley
+
+**Date:** 2026-04-20 | **Status:** Applied
+
+#### Fix 1: Recursive Inputs Nesting in Run History
+
+**Problem:** Logic App run history showed deeply nested `Inputs > value > Inputs > value...` structures due to Office 365 V3 connector's `body` field being an object (not a string).
+
+**Solution:**
+- Removed unused `Compose_Email_Metadata` action
+- Changed body reference from `@{triggerBody()?['body']}` to `@{triggerBody()?['body']?['content']}` to extract HTML string only
+
+**Impact:**
+- Run history now clean and readable
+- Cosmos DB `body` field correctly stores HTML string (not object)
+
+---
+
+#### Fix 2: Cosmos DB BadGateway Error — Expression Type Safety
+
+**Problem:** 502 BadGateway on Cosmos save due to:
+1. `from` field string interpolation corrupting JSON object
+2. `messageId` partition key null → empty string → Cosmos rejection
+
+**Solution:**
+- Changed `from`: `@{triggerBody()?['from']}` → `@triggerBody()?['from']` (raw expression, preserves object)
+- Changed `messageId`: Added coalesce fallback to `internetMessageId` or O365 message ID
+
+**Pattern Established:**
+- `@{expr}` — string interpolation (only for strings: subject, dates, IDs)
+- `@expr` — raw expression (for objects, arrays, booleans: `from`, `toRecipients`, `hasAttachments`)
+
+**Impact:**
+- **Cosmos DB:** `from` field now properly typed as `{emailAddress: {name, address}}`
+- **Lambert:** Templates must access `email.from.emailAddress.address` instead of treating `from` as string
+- **Kane:** Test fixtures should reflect `from` as object, not string
+
+#### Affected Files
+- `logic-app/workflow.json` — both fixes applied
+
+---
+
+### Logic App Standard → Consumption Migration — Ripley
+
+**Date:** 2025-07-20 | **Status:** Implemented
+
+**Context:** Standard tier required storage account shared keys (violates security policy). Consumption is serverless and requires no backing storage.
+
+**Changes:**
+- Removed App Service Plan (WS1 SKU)
+- Removed `az logicapp create` (Standard-specific)
+- Added `az resource create --resource-type Microsoft.Logic/workflows` with inline definition
+- Workflow definition now embedded in ARM resource body
+- `$connections` parameters populated by deploy script
+- Storage account: `--allow-shared-key-access false`
+
+**Impact:**
+- **Cost:** Reduced — no App Service Plan ($100+/month)
+- **Security:** Improved — zero shared keys, all managed identity
+- **Deployment:** Simplified — one az resource create
+
+**Affected Files:**
+- `infrastructure/deploy.sh`
+- `logic-app/workflow.json`
+- `logic-app/connections.json` (now reference documentation only)
+- `README.md`
+- `docs/architecture.md`
+
+---
+
+### User Directive: Security Policy — dsanchor
+
+**Date:** 2026-04-20T19:03:00Z
+
+**Directive:** Never use shared access keys anywhere. Always use managed identity. Storage accounts must have shared key access disabled. Logic App should be Consumption tier, not Standard.
+
+**Rationale:** Security policy enforcement — zero-key architecture.
+
+---
+
+### Design Upgrade — Lambert
+
+**Date:** 2026-04-20 | **Status:** Implemented
+
+**Scope:** All 5 frontend files transformed to DESIGN.md specifications.
+
+**Key Changes:**
+- Dark hero sections on Inbox, Detail, and Error pages
+- 56px display headlines for email subjects
+- Sender avatar initials in circular backgrounds
+- File-type SVG icons for attachments
+- Hover-lift animations on interactive elements
+- Binary dark/light section rhythm throughout
+- Responsive across 6 breakpoints (320px–1536px)
+
+**Files Modified:**
+- `web-app/templates/base.html`
+- `web-app/templates/emails.html`
+- `web-app/templates/email_detail.html`
+- `web-app/templates/error.html`
+- `web-app/static/css/style.css`
+
+**Validation:** All 30 tests passing — no functionality regression.
 
 ---
 

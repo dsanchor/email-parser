@@ -61,4 +61,14 @@
 - **Template variable:** Uses `total` (not `total_count`) from app.py context
 - **All 30 tests passing after changes**
 
+### Cross-Agent Update from Ripley (2026-04-20)
+
+**⚠️ IMPORTANT: Cosmos DB `from` Field Type Changed**
+- **Change:** Ripley fixed Logic App to preserve `from` as native JSON object instead of string
+- **Before:** `from` was string (corrupted by string interpolation)
+- **After:** `from` is now `{emailAddress: {name: "...", address: "..."}}`
+- **Your Action:** Update any template code that accesses `email.from` to use `email.from.emailAddress.address` for email address, `email.from.emailAddress.name` for display name
+- **Impact:** Visual Upgrade (v2) assumed `from` was string; may need template adjustments if directly accessing `from` field
+- **Test Status:** All 30 tests still passing (verify with `cd web-app && python -m pytest ../tests/ -v`)
+
 ---
