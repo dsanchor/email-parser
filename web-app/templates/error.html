@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} — Email Parser{% endblock %}
+
+{% block content %}
+<section class="section-light">
+  <div class="container error-section">
+    <div class="error-code">{{ code }}</div>
+    <div class="error-message">{{ message }}</div>
+    <div class="error-actions">
+      <a href="javascript:location.reload()" class="btn-pill btn-pill--filled">Try again</a>
+      <a href="/emails" class="btn-pill">← Back to Inbox</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

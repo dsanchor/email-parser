@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+jinja2
+azure-cosmos
+azure-storage-blob
+azure-identity
+python-multipart
+bleach

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Inbox — Email Parser{% endblock %}
+
+{% block content %}
+<section class="section-light">
+  <div class="container">
+    <h1 class="heading-section" style="margin-bottom: 24px;">Inbox</h1>
+
+    <form class="search-bar" action="/emails" method="get">
+      <input type="text" name="q" class="search-input" placeholder="Search by subject or sender…" value="{{ q }}" aria-label="Search emails">
+      <button type="submit" class="search-btn" aria-label="Search">Search</button>
+    </form>
+
+    {% if emails %}
+    <div class="email-list">
+      {% for email in emails %}
+      <a href="/emails/{{ email.id }}" class="card email-card">
+        <div class="email-card__header">
+          <span class="email-card__from">{{ email.get('from', 'Unknown sender') }}</span>
+          <span class="email-card__date">{{ email.receivedDateTime | format_date }}</span>
+        </div>
+        <div class="email-card__subject">{{ email.subject }}</div>
+        <div class="email-card__preview">{{ email.get('bodyPreview', '') }}</div>
+        {% if email.get('hasAttachments') %}
+        <div class="email-card__footer">
+          <span class="badge">📎 {{ email.get('attachments', []) | length }} attachment{{ 's' if email.get('attachments', []) | length != 1 else '' }}</span>
+        </div>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+      {% if page > 1 %}
+      <a href="/emails?page={{ page - 1 }}{% if q %}&q={{ q }}{% endif %}" class="btn-pill">&larr; Previous</a>
+      {% endif %}
+      <span class="pagination__info">Page {{ page }} of {{ total_pages }}</span>
+      {% if page < total_pages %}
+      <a href="/emails?page={{ page + 1 }}{% if q %}&q={{ q }}{% endif %}" class="btn-pill">Next &rarr;</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state__icon">📭</div>
+      <div class="empty-state__text">
+        {% if q %}No emails match "{{ q }}"{% else %}No emails yet{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

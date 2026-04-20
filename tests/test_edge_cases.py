@@ -49,14 +49,7 @@ class TestSpecialCharacters:
 
 class TestXSSPrevention:
     async def test_email_with_script_injection(self, client):
-        """Verify the detail template uses | safe — document the XSS risk.
-
-        NOTE: The current template renders body with | safe, which means
-        malicious HTML in email body IS rendered as-is. This test documents
-        the behavior. A follow-up task should sanitize the body before
-        rendering (e.g., bleach or nh3 library).
-        """
-        # Build an email with a script tag
+        """Verify that script tags in email body are sanitized out."""
         xss_email = {
             "id": "email-xss",
             "messageId": "<xss@example.com>",
@@ -81,10 +74,11 @@ class TestXSSPrevention:
             async with await _ac(app_module.app) as ac:
                 resp = await ac.get("/emails/email-xss")
                 assert resp.status_code == 200
-                # Document: body with | safe renders script tags verbatim
-                # This is a known risk — email bodies contain HTML by design,
-                # but should be sanitized before rendering.
                 assert "XSS Test" in resp.text
+                # Script tags must be stripped by sanitization
+                assert "<script>" not in resp.text
+                assert "alert(" not in resp.text
+                assert "<p>Hello</p>" in resp.text
 
     async def test_email_list_escapes_subjects(self, client):
         """Email list view should not render raw HTML in subjects."""
@@ -174,12 +168,7 @@ class TestConcurrency:
 
 class TestCosmosConnectionFailure:
     async def test_cosmos_connection_failure(self):
-        """Cosmos DB connection failure returns 500, not a crash.
-
-        NOTE: The /emails route currently does not have a try/except around
-        query_items — a Cosmos failure propagates as an unhandled 500 via
-        FastAPI's default error handler. A proper error page should be added.
-        """
+        """Cosmos DB connection failure returns 503 with friendly error page."""
         container = MagicMock()
         container.query_items.side_effect = Exception("Cosmos DB connection refused")
         blob_service = _build_mock_blob_service()
@@ -189,10 +178,13 @@ class TestCosmosConnectionFailure:
         with patch.object(app_module, "_get_cosmos_container", return_value=container), \
              patch.object(app_module, "_get_blob_service", return_value=blob_service), \
              patch.object(app_module, "_get_credential", return_value=credential):
-            transport = ASGITransport(app=app_module.app, raise_app_exceptions=False)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            async with AsyncClient(
+                transport=ASGITransport(app=app_module.app), base_url="http://test"
+            ) as ac:
                 resp = await ac.get("/emails")
-                assert resp.status_code == 500
+                assert resp.status_code == 503
+                assert "Unable to load emails" in resp.text
+                assert "Try again" in resp.text
 
 
 class TestBlobConnectionFailure:

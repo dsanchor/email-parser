@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ email.subject }} — Email Parser{% endblock %}
+
+{% block content %}
+{# Dark hero section with subject and metadata #}
+<section class="detail-hero">
+  <div class="container">
+    <a href="/emails" class="detail-hero__back">← Inbox</a>
+    <h1 class="detail-hero__subject">{{ email.subject }}</h1>
+    <div class="detail-hero__meta">
+      <span><strong>From:</strong> {{ email.get('from', 'Unknown') }}</span>
+      <span><strong>To:</strong> {{ email.get('toRecipients', []) | join(', ') }}</span>
+      <span><strong>Date:</strong> {{ email.receivedDateTime | format_date }}</span>
+    </div>
+  </div>
+</section>
+
+{# Email body — light section #}
+<section class="email-body-section">
+  <div class="email-body">
+    {{ email.get('body', '<p>No content</p>') | safe }}
+  </div>
+</section>
+
+{# Attachments — alternate section #}
+{% if email.get('attachments') %}
+<section class="attachments-section">
+  <div class="container">
+    <h2 class="attachments-title">Attachments</h2>
+    <div class="attachment-list">
+      {% for att in email.attachments %}
+      <div class="attachment-item">
+        <div class="attachment-info">
+          <span class="attachment-icon">📄</span>
+          <div>
+            <div class="attachment-name">{{ att.name }}</div>
+            <div class="attachment-meta">{{ att.get('contentType', '') }} · {{ att.get('size', 0) | human_size }}</div>
+          </div>
+        </div>
+        <a href="/emails/{{ email.id }}/attachments/{{ att.name }}" class="btn-pill btn-pill--filled">Download</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
