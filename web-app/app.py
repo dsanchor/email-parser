@@ -170,8 +170,9 @@ async def email_list(request: Request, page: int = Query(1, ge=1), q: str = Quer
     except Exception:
         logger.exception("Failed to fetch emails from Cosmos DB")
         return templates.TemplateResponse(
+            request,
             "error.html",
-            {"request": request, "code": 503, "message": "Unable to load emails. Please try again later."},
+            {"code": 503, "message": "Unable to load emails. Please try again later."},
             status_code=503,
         )
 
@@ -182,9 +183,9 @@ async def email_list(request: Request, page: int = Query(1, ge=1), q: str = Quer
     page_items = items[offset : offset + PAGE_SIZE]
 
     return templates.TemplateResponse(
+        request,
         "emails.html",
         {
-            "request": request,
             "emails": page_items,
             "page": page,
             "total_pages": total_pages,
@@ -207,8 +208,9 @@ async def email_detail(request: Request, email_id: str):
     except Exception:
         logger.exception("Failed to fetch email detail from Cosmos DB")
         return templates.TemplateResponse(
+            request,
             "error.html",
-            {"request": request, "code": 503, "message": "Unable to load this email. Please try again later."},
+            {"code": 503, "message": "Unable to load this email. Please try again later."},
             status_code=503,
         )
 
@@ -219,7 +221,7 @@ async def email_detail(request: Request, email_id: str):
     # Sanitize email body to prevent XSS
     if "body" in email:
         email["body"] = sanitize_html(email["body"])
-    return templates.TemplateResponse("email_detail.html", {"request": request, "email": email})
+    return templates.TemplateResponse(request, "email_detail.html", {"email": email})
 
 
 @app.get("/emails/{email_id}/attachments/{filename}")
@@ -252,9 +254,9 @@ async def download_attachment(email_id: str, filename: str):
 # ---------------------------------------------------------------------------
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):
-    return templates.TemplateResponse("error.html", {"request": request, "code": 404, "message": "Not Found"}, status_code=404)
+    return templates.TemplateResponse(request, "error.html", {"code": 404, "message": "Not Found"}, status_code=404)
 
 
 @app.exception_handler(500)
 async def server_error_handler(request: Request, exc: Exception):
-    return templates.TemplateResponse("error.html", {"request": request, "code": 500, "message": "Something went wrong"}, status_code=500)
+    return templates.TemplateResponse(request, "error.html", {"code": 500, "message": "Something went wrong"}, status_code=500)
