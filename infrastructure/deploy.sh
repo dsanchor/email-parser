@@ -127,12 +127,14 @@ az resource create \
   }" \
   --output none
 
-# Cosmos DB connection (managed identity)
-echo "  ▸ Cosmos DB connection (managed identity)..."
+# Cosmos DB connection (MI auth handled at Logic App $connections level)
+echo "  ▸ Cosmos DB connection..."
 COSMOS_ENDPOINT=$(az cosmosdb show \
   --name "$COSMOS_ACCOUNT" \
   --resource-group "$RESOURCE_GROUP" \
   --query documentEndpoint --output tsv)
+
+echo "    Cosmos DB Endpoint: $COSMOS_ENDPOINT"
 
 az resource create \
   --resource-group "$RESOURCE_GROUP" \
@@ -143,15 +145,7 @@ az resource create \
     \"api\": {
       \"id\": \"/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$LOCATION/managedApis/documentdb\"
     },
-    \"displayName\": \"Cosmos DB - Email Parser\",
-    \"parameterValueSet\": {
-      \"name\": \"managedIdentityAuth\",
-      \"values\": {
-        \"databaseAccount\": {
-          \"value\": \"$COSMOS_ACCOUNT\"
-        }
-      }
-    }
+    \"displayName\": \"Cosmos DB - Email Parser\"
   }" \
   --output none
 
