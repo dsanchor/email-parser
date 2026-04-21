@@ -130,15 +130,16 @@
 
 ---
 
-### Frontend Polish (v5) — 2025-07-18
+### Frontend Polish (v5) — 2026-04-21
 
 - **Scope:** CSS overhaul + branding cleanup for premium look and feel
+- **Commit:** 8473f5c — "Lambert: Frontend polish — Inter font, branding cleanup, micro-interactions"
 - **Changes:**
   - **Branding removed:** All "Email Parser", "Powered by Azure" text stripped from nav and footer. Nav brand is now just "Inbox". Footer is empty/invisible.
   - **Titles cleaned:** All `<title>` tags no longer say "Email Parser" — just "Inbox", subject lines, or "Error {code}"
   - **Inter font added:** Google Fonts Inter loaded as primary font (SF Pro substitute for non-Apple browsers). Font stack: `Inter, SF Pro Text/Display, Helvetica Neue, Arial, sans-serif`
   - **Search input:** Pill shape with `border-radius: 11px` per DESIGN.md, thicker focus ring, hover state on border, search icon turns blue on focus
-  - **Table micro-interactions:** Subtle blue-tinted hover, zebra striping on even rows, attachment clip icon fades in on hover
+  - **Table micro-interactions:** Subtle blue-tinted hover, zebra striping on even rows (`rgba(0,0,0,0.015)` — very subtle), attachment clip icon fades in on hover
   - **Nav glass bar:** Added subtle `box-shadow` beneath for depth definition
   - **Buttons:** Added `translateY(-1px)` lift on hover, active press state
   - **Smooth scroll:** `html { scroll-behavior: smooth }` added
@@ -146,7 +147,8 @@
   - **Attachment rows:** Icon turns blue on hover, download text fades in
   - **Back link:** Gap widens on hover for playful micro-interaction
   - **No borders on cards/containers:** Removed `box-shadow` from detail meta/body cards per DESIGN.md
-  - **CSS variables:** Added `--transition-fast`, `--transition-medium`, `--shadow-card`, `--shadow-subtle`
+  - **CSS variables:** Added `--transition-fast: 0.2s ease`, `--transition-medium: 0.35s ease`, `--shadow-card`, `--shadow-subtle`
 - **DESIGN.md compliance:** All colors, typography, nav glass, border radii, shadows match spec
 - **Files modified:** `base.html`, `emails.html`, `email_detail.html`, `error.html`, `style.css`
 - **All 30 tests passing — no regression**
+- **Status:** Complete and production-ready

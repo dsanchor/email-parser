@@ -251,6 +251,50 @@ Ripley must configure Container Apps with these env vars and assign managed iden
 
 ---
 
+### Frontend Polish — Lambert (v5)
+
+**Date:** 2026-04-21 | **Status:** Implemented
+
+#### Decision
+
+Polished frontend with branding removal, Inter font integration, and CSS micro-interactions. Final visual iteration before production release.
+
+#### Rationale
+
+1. **Branding removal:** "Email Parser · Powered by Azure" text is developer-facing and appears unfinished to users. Replaced with simple "Inbox" wordmark in nav; footer emptied.
+2. **Inter font:** SF Pro is Apple-proprietary and only renders on macOS/iOS. Inter is the closest open-source match (same optical sizing philosophy, similar metrics). Added via Google Fonts `<link>` — no build step needed.
+3. **Micro-interactions:** Subtle hover transitions (blue tint, lift, opacity changes) make the UI feel responsive without animation overhead.
+4. **Polish details:** Zebra striping (very subtle), animated sort arrows, smooth scroll, CSS variables for consistency.
+
+#### Key Design Decisions
+
+- **Search input:** `border-radius: 11px` (DESIGN.md "Comfortable" tier)
+- **Table hover:** Blue-tinted `rgba(0,113,227,0.04)` instead of gray — ties interactive states to accent color
+- **Zebra striping:** Very subtle `rgba(0,0,0,0.015)` — visible but not distracting
+- **No card shadows:** Removed `box-shadow` from detail meta/body cards per DESIGN.md "Don't use borders on cards"
+- **Footer:** Empty element retained for layout consistency, but invisible
+- **Transitions:** `--transition-fast: 0.2s ease`, `--transition-medium: 0.35s ease` applied consistently
+
+#### Impact
+
+- **Kane:** No test changes needed — all 30 tests pass
+- **Ripley:** No infrastructure changes
+- **Dallas:** No data model changes
+
+#### Files Modified
+
+- `web-app/templates/base.html` — Inter font link, nav cleanup, footer emptied
+- `web-app/templates/emails.html` — Title simplified
+- `web-app/templates/email_detail.html` — Title simplified
+- `web-app/templates/error.html` — Title simplified
+- `web-app/static/css/style.css` — Complete overhaul with micro-interactions
+
+#### Commit
+
+`8473f5c` — "Lambert: Frontend polish — Inter font, branding cleanup, micro-interactions"
+
+---
+
 ### Container Registry Migration — Ripley
 
 **Date:** 2025-01-20 | **Status:** Approved
