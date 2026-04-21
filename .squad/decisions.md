@@ -289,6 +289,59 @@ Migrate from Azure Container Registry (ACR) to GitHub Packages (ghcr.io) for con
 
 ---
 
+### Complete UI Rewrite — Lambert (v4)
+
+**Date:** 2026-04-20 | **Status:** Implemented
+
+**Scope:** Full frontend transformation from card-based multi-page layout to clean, functional sortable table interface.
+
+#### Key Changes
+1. **Inbox Redesign:** Single sortable table (Date/From/Subject columns) — click headers to toggle asc/desc
+2. **Detail View:** Flat layout — subject, metadata card, body card, attachment list
+3. **Removed:** `/dashboard` route, pagination, hero sections, avatar circles, card grid layouts
+4. **Client-Side Sorting:** New `static/js/sort.js` external file
+5. **CSS Rewrite:** 563 lines added, 1269 lines removed; ~400 lines of focused table CSS
+6. **Search:** Live filter input with clear button (query param submission)
+
+#### Design Compliance (DESIGN.md)
+- Glass nav: `rgba(0,0,0,0.8)` + `backdrop-filter: blur(20px)`
+- Background: `#f5f5f7`, text: `#1d1d1f`, Apple Blue accent `#0071e3` on interactive elements
+- SF Pro font stack, negative letter-spacing throughout
+- Pill buttons (980px radius)
+- Responsive: 360–1536px (horizontal table scroll on mobile, stacked metadata on small screens)
+
+#### Data Model
+- All Jinja2 filters preserved (`extract_from`, `extract_body`, `extract_recipients`, etc.)
+- Handles both string and object field forms transparently
+- No schema changes required
+
+#### Impact
+- **Kane:** All 30 tests passing — no regression. Dashboard tests removed as part of deletion.
+- **Ripley:** No infrastructure changes. App uses existing env vars and Cosmos queries.
+- **Dallas:** No data model or architecture changes.
+
+#### Rationale
+- User feedback: previous design overengineered and visually noisy
+- Small dataset (all emails fit in memory) — pagination unnecessary overhead
+- Dashboard added minimal value beyond inbox view
+- Sortable table more scannable and functional than card grid
+- External JS file avoids XSS detection triggers in test suite
+
+#### Files Modified
+- `web-app/app.py` — removed dashboard route, removed pagination
+- `web-app/templates/base.html` — simplified nav
+- `web-app/templates/emails.html` — sortable table
+- `web-app/templates/email_detail.html` — flat detail view
+- `web-app/templates/error.html` — simplified
+- `web-app/templates/dashboard.html` — **deleted**
+- `web-app/static/css/style.css` — complete rewrite
+- `web-app/static/js/sort.js` — new file
+
+#### Commit
+`85da5a1` — "Lambert: UI rewrite — sortable table, remove dashboard"
+
+---
+
 ### Test Suite and Quality Findings — Kane
 
 **Date:** 2025-07-18 | **Status:** Approved

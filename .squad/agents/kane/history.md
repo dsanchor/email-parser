@@ -46,3 +46,22 @@
 - Default storage account name in deploy.sh: `emailparserstor` (not `emailparserstorage`)
 - Default Cosmos database: `email-parser-db` (not `email-db`)
 - Validation script aligned to actual deploy.sh defaults
+
+---
+
+### Cross-Agent Update: Lambert's Complete UI Rewrite (v4) — 2026-04-20
+
+**From Lambert (commit 85da5a1):**
+
+- **Scope:** Full frontend rewrite — from card-based layout to clean sortable table
+- **Changes:**
+  - Inbox: Single sortable table (Date, From, Subject) with client-side JS column sorting
+  - Detail: Flat layout — subject, metadata card, body card, attachment list
+  - Removed: `/dashboard` route, pagination, hero sections, card grid layouts
+  - CSS: Complete rewrite (1269 removed, 563 added) — ~400 lines of focused table CSS
+  - JS: `static/js/sort.js` — external file for column sorting
+- **Design compliance:** Glass nav, Apple Blue accent, SF Pro font, responsive 360–1536px
+- **Data model:** All Jinja2 filters preserved (extract_from, extract_body, etc.) — handles both string and object field forms
+- **Test Status:** All 30 tests passing — dashboard tests removed as part of deletion
+- **Your Action:** No changes needed. Existing test fixtures remain valid; filters handle all field types.
+- **Impact on your role:** Frontend now uses sorted table instead of paginated cards; all tests still pass with current fixture set.
