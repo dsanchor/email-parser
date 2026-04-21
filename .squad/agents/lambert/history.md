@@ -152,3 +152,34 @@
 - **Files modified:** `base.html`, `emails.html`, `email_detail.html`, `error.html`, `style.css`
 - **All 30 tests passing — no regression**
 - **Status:** Complete and production-ready
+
+---
+
+### Node.js + React Rewrite (v6) — 2025-07-20
+
+- **Scope:** Complete rewrite from Python/FastAPI/Jinja2 to Node.js/Express + React SPA
+- **Motivation:** User requested full stack migration to Node.js + React
+- **Backend (`server.js`):**
+  - Express.js API server with same 5 routes: `/` redirect, `/health`, `/api/emails`, `/api/emails/:id`, `/api/emails/:id/attachments/:filename`
+  - Azure SDKs: `@azure/cosmos`, `@azure/storage-blob`, `@azure/identity`
+  - Same env vars: `COSMOS_ENDPOINT`, `COSMOS_DATABASE`, `COSMOS_CONTAINER`, `STORAGE_ACCOUNT_URL`, `STORAGE_CONTAINER`, `COSMOS_KEY`, `STORAGE_CONNECTION_STRING`
+  - Server-side HTML sanitization with `sanitize-html` (replaces bleach)
+  - Serves React build from `dist/` in production, SPA fallback for client-side routing
+  - Port 8000 preserved for Container Apps compatibility
+- **Frontend (React + Vite):**
+  - SPA with React Router: `EmailList`, `EmailDetail`, `ErrorPage` pages
+  - `Layout` component with glass nav bar
+  - Client-side sorting (Date, From, Subject) — replaces `sort.js`
+  - Search via URL query params, fetches from `/api/emails?q=`
+  - DOMPurify for defense-in-depth XSS prevention on `dangerouslySetInnerHTML`
+  - Handles both string and object forms of `from`, `body`, `toRecipients` fields
+- **CSS (`App.css`):** 1:1 port of `style.css` — all Apple-inspired design preserved:
+  - Glass nav, `#f5f5f7` bg, Inter font, negative letter-spacing, pill buttons (980px radius)
+  - Responsive breakpoints at 834, 640, 480px
+  - Zebra striping, sort arrows, micro-interactions all retained
+- **Dockerfile:** Multi-stage — `node:20-alpine` build stage + production stage, non-root user
+- **Files deleted:** `app.py`, `requirements.txt`, `templates/`, `static/`, `__pycache__/`, `.pytest_cache/`
+- **Files created:** `package.json`, `server.js`, `vite.config.js`, `index.html`, `src/main.jsx`, `src/App.jsx`, `src/App.css`, `src/components/Layout.jsx`, `src/pages/EmailList.jsx`, `src/pages/EmailDetail.jsx`, `src/pages/ErrorPage.jsx`
+- **Build verified:** `npm install` + `npm run build` succeed — 46 modules, 267KB JS bundle
+- **GitHub Actions:** No changes needed — `build-push.yml` still uses `context: ./web-app`
+- **`.gitignore` updated:** Added `node_modules/`, `web-app/dist/`

@@ -177,14 +177,16 @@ a:hover { text-decoration: underline; }
   right: 10px;
   font-size: 18px;
   color: var(--color-text-secondary);
-  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
   line-height: 1;
   transition: color var(--transition-fast);
+  padding: 0;
 }
 
 .inbox__search-clear:hover {
   color: var(--color-text);
-  text-decoration: none;
 }
 
 /* ---- Table ---- */
@@ -249,7 +251,7 @@ a:hover { text-decoration: underline; }
   background: rgba(0, 113, 227, 0.07);
 }
 
-/* Zebra striping — subtle alternating rows */
+/* Zebra striping */
 .email-table__row:nth-child(even) {
   background: rgba(0, 0, 0, 0.015);
 }
