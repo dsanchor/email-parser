@@ -1,5 +1,4 @@
-/* Email Parser — Clean Table UI
-   Apple-inspired design per DESIGN.md */
+/* Inbox — Apple-inspired UI per DESIGN.md */
 
 /* ---- Reset & Base ---- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,14 +12,18 @@
   --color-link: #0066cc;
   --color-border: rgba(0, 0, 0, 0.08);
   --color-hover: rgba(0, 0, 0, 0.03);
-  --font: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --transition: 0.2s ease;
+  --font: "Inter", "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Inter", "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --transition-fast: 0.2s ease;
+  --transition-medium: 0.35s ease;
+  --shadow-card: rgba(0, 0, 0, 0.22) 3px 5px 30px 0px;
+  --shadow-subtle: 0 1px 4px rgba(0, 0, 0, 0.06);
   --max-width: 980px;
 }
 
 html {
   font-size: 16px;
+  scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -37,7 +40,7 @@ body {
   flex-direction: column;
 }
 
-a { color: var(--color-link); text-decoration: none; }
+a { color: var(--color-link); text-decoration: none; transition: color var(--transition-fast); }
 a:hover { text-decoration: underline; }
 
 /* ---- Container ---- */
@@ -56,7 +59,8 @@ a:hover { text-decoration: underline; }
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   height: 48px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.15);
 }
 
 .nav__inner {
@@ -69,19 +73,15 @@ a:hover { text-decoration: underline; }
 }
 
 .nav__brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   color: #ffffff;
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: -0.224px;
   text-decoration: none;
+  transition: opacity var(--transition-fast);
 }
 
 .nav__brand:hover { text-decoration: none; opacity: 0.8; }
-
-.nav__icon { opacity: 0.9; }
 
 /* ---- Main content ---- */
 .main {
@@ -90,26 +90,10 @@ a:hover { text-decoration: underline; }
   padding-bottom: 48px;
 }
 
-/* ---- Footer ---- */
+/* ---- Footer (minimal) ---- */
 .footer {
-  border-top: 1px solid var(--color-border);
-  padding: 20px 0;
+  height: 1px;
 }
-
-.footer__inner {
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 0 24px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  letter-spacing: -0.12px;
-  color: var(--color-text-secondary);
-}
-
-.footer__brand { font-weight: 600; color: var(--color-text); }
-.footer__sep { opacity: 0.4; }
 
 /* ---- Inbox Page ---- */
 .inbox__header {
@@ -141,7 +125,7 @@ a:hover { text-decoration: underline; }
   color: var(--color-text-secondary);
 }
 
-/* Search */
+/* Search — pill shape per DESIGN.md */
 .inbox__search {
   position: relative;
   display: flex;
@@ -150,28 +134,38 @@ a:hover { text-decoration: underline; }
 
 .inbox__search-icon {
   position: absolute;
-  left: 12px;
+  left: 14px;
   color: var(--color-text-secondary);
   pointer-events: none;
+  transition: color var(--transition-fast);
 }
 
 .inbox__search-input {
   font-family: var(--font);
   font-size: 14px;
   letter-spacing: -0.224px;
-  padding: 8px 12px 8px 36px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
+  padding: 9px 14px 9px 38px;
+  border: 2px solid rgba(0, 0, 0, 0.06);
+  border-radius: 11px;
   background: var(--color-surface);
   color: var(--color-text);
-  width: 260px;
+  width: 280px;
   outline: none;
-  transition: border-color var(--transition);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.inbox__search-input:hover {
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
 .inbox__search-input:focus {
   border-color: var(--color-blue);
-  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+  background: #fff;
+}
+
+.inbox__search:focus-within .inbox__search-icon {
+  color: var(--color-blue);
 }
 
 .inbox__search-input::placeholder {
@@ -185,6 +179,7 @@ a:hover { text-decoration: underline; }
   color: var(--color-text-secondary);
   text-decoration: none;
   line-height: 1;
+  transition: color var(--transition-fast);
 }
 
 .inbox__search-clear:hover {
@@ -197,7 +192,6 @@ a:hover { text-decoration: underline; }
   background: var(--color-surface);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .email-table {
@@ -224,13 +218,18 @@ a:hover { text-decoration: underline; }
 .email-table__th--from { width: 220px; }
 .email-table__th--subject { width: auto; }
 
-.sortable { cursor: pointer; }
+.sortable {
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
 .sortable:hover { color: var(--color-blue); }
 
 .sort-arrow {
+  display: inline-block;
   font-size: 10px;
   color: transparent;
   margin-left: 4px;
+  transition: color var(--transition-fast), transform var(--transition-fast);
 }
 
 .sort-arrow--active {
@@ -239,22 +238,35 @@ a:hover { text-decoration: underline; }
 
 .email-table__row {
   cursor: pointer;
-  transition: background var(--transition);
+  transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .email-table__row:hover {
-  background: var(--color-hover);
+  background: rgba(0, 113, 227, 0.04);
+}
+
+.email-table__row:active {
+  background: rgba(0, 113, 227, 0.07);
+}
+
+/* Zebra striping — subtle alternating rows */
+.email-table__row:nth-child(even) {
+  background: rgba(0, 0, 0, 0.015);
+}
+.email-table__row:nth-child(even):hover {
+  background: rgba(0, 113, 227, 0.04);
 }
 
 .email-table__td {
   font-size: 14px;
   letter-spacing: -0.224px;
   padding: 14px 16px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   vertical-align: middle;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: color var(--transition-fast);
 }
 
 .email-table__row:last-child .email-table__td {
@@ -264,6 +276,7 @@ a:hover { text-decoration: underline; }
 .email-table__td--date {
   color: var(--color-text-secondary);
   font-size: 13px;
+  letter-spacing: -0.12px;
 }
 
 .email-table__td--from {
@@ -288,6 +301,12 @@ a:hover { text-decoration: underline; }
 .email-table__clip {
   flex-shrink: 0;
   color: var(--color-text-secondary);
+  opacity: 0.6;
+  transition: opacity var(--transition-fast);
+}
+
+.email-table__row:hover .email-table__clip {
+  opacity: 1;
 }
 
 /* ---- Empty state ---- */
@@ -325,7 +344,7 @@ a:hover { text-decoration: underline; }
   background: var(--color-blue);
   color: #ffffff;
   text-decoration: none;
-  transition: opacity var(--transition);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
   border: none;
   cursor: pointer;
 }
@@ -333,6 +352,12 @@ a:hover { text-decoration: underline; }
 .btn:hover {
   opacity: 0.85;
   text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+  opacity: 0.75;
 }
 
 .btn--outline {
@@ -358,9 +383,10 @@ a:hover { text-decoration: underline; }
   letter-spacing: -0.224px;
   color: var(--color-link);
   margin-bottom: 24px;
+  transition: color var(--transition-fast), gap var(--transition-fast);
 }
 
-.detail__back:hover { text-decoration: underline; }
+.detail__back:hover { text-decoration: underline; gap: 6px; }
 
 .detail__header {
   margin-bottom: 32px;
@@ -382,7 +408,6 @@ a:hover { text-decoration: underline; }
   padding: 16px 20px;
   background: var(--color-surface);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .detail__meta-row {
@@ -418,7 +443,6 @@ a:hover { text-decoration: underline; }
   border-radius: 8px;
   padding: 32px;
   margin-bottom: 32px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   font-size: 15px;
   line-height: 1.6;
   letter-spacing: -0.374px;
@@ -464,7 +488,6 @@ a:hover { text-decoration: underline; }
   background: var(--color-surface);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .attachment {
@@ -474,15 +497,16 @@ a:hover { text-decoration: underline; }
   padding: 12px 16px;
   color: var(--color-text);
   text-decoration: none;
-  transition: background var(--transition);
+  transition: background var(--transition-fast), transform var(--transition-fast);
 }
 
 .attachment:hover {
-  background: var(--color-hover);
+  background: rgba(0, 113, 227, 0.04);
   text-decoration: none;
 }
 
-.attachment__icon { flex-shrink: 0; color: var(--color-text-secondary); }
+.attachment__icon { flex-shrink: 0; color: var(--color-text-secondary); transition: color var(--transition-fast); }
+.attachment:hover .attachment__icon { color: var(--color-blue); }
 
 .attachment__name {
   flex: 1;
@@ -506,6 +530,12 @@ a:hover { text-decoration: underline; }
   letter-spacing: -0.224px;
   color: var(--color-blue);
   flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+  opacity: 0.7;
+}
+
+.attachment:hover .attachment__download {
+  opacity: 1;
 }
 
 /* ---- Error Page ---- */

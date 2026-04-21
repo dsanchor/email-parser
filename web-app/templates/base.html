@@ -3,19 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Email Parser{% endblock %}</title>
+  <title>{% block title %}Inbox{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
 </head>
 <body>
   <nav class="nav" role="navigation" aria-label="Main navigation">
     <div class="nav__inner">
-      <a href="/emails" class="nav__brand" aria-label="Email Parser Home">
-        <svg class="nav__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="2" y="4" width="20" height="16" rx="3"/>
-          <polyline points="22,7 12,14 2,7"/>
-        </svg>
-        <span>Email Parser</span>
-      </a>
+      <a href="/emails" class="nav__brand" aria-label="Inbox Home">Inbox</a>
     </div>
   </nav>
 
@@ -23,12 +20,6 @@
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="footer">
-    <div class="footer__inner">
-      <span class="footer__brand">Email Parser</span>
-      <span class="footer__sep" aria-hidden="true">·</span>
-      <span>Powered by Azure</span>
-    </div>
-  </footer>
+  <footer class="footer"></footer>
 </body>
 </html>
