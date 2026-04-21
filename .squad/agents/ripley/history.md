@@ -160,3 +160,13 @@
 - **Impact:** Frontend reliability — dashboard and detail pages render correctly with properly-typed Cosmos data
 - **New Feature:** Dashboard route added (`GET /dashboard`) with email statistics
 - **Test Status:** All 30 tests still passing (Lambert confirmed)
+
+### Session: Subject Filter Parameterization
+- **Change:** Made the email subject filter configurable via `SUBJECT_FILTER` env var with `__SUBJECT_FILTER__` placeholder
+- **Files modified:**
+  - `logic-app/workflow.json`: Replaced hardcoded `"Demo email"` with `__SUBJECT_FILTER__` in 3 places (fetch queries, subscribe queries, trigger condition)
+  - `infrastructure/deploy.sh`: Added `SUBJECT_FILTER` config var (default: `Demo email`), echo in config output, sed replacement on line 176
+  - `infrastructure/redeploy-logic-app.sh`: Same additions — config var, echo, sed replacement
+- **Pattern:** Follows existing `__STORAGE_ACCOUNT__` / `__COSMOS_ACCOUNT__` placeholder convention — plain string sed substitution at deploy time
+- **Usage:** Override at deploy time with `SUBJECT_FILTER="My custom prefix" ./infrastructure/deploy.sh`
+- **Key files:** `logic-app/workflow.json`, `infrastructure/deploy.sh`, `infrastructure/redeploy-logic-app.sh`

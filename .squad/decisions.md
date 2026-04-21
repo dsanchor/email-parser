@@ -468,6 +468,100 @@ Both managed API connections (Blob Storage and Cosmos DB) failed:
 
 ---
 
+### User Directive: Node.js + React Migration
+
+**Date:** 2026-04-21T08:34:00Z  
+**By:** dsanchor (via Copilot)  
+**Status:** In Progress
+
+**What:** Change the web app from Python to Node.js and React. Update the code, the Dockerfile, GitHub workflow, and all related files.
+
+**Why:** User request — tech stack migration from Python/FastAPI/Jinja2 to Node.js/Express/React
+
+---
+
+### Test Mock Contract with server.js — Kane (QA)
+
+**Date:** 2026-04-21  
+**Status:** Pending Lambert alignment
+
+**Context:** Tests rewritten from Python/pytest to Node.js/Jest+Supertest ahead of the Express server. Mocks assume a specific contract.
+
+**Key Assumptions:**
+1. **Export:** `module.exports = { app }` or `module.exports = app`
+2. **Cosmos SDK:** `container.items.query(querySpec).fetchAll()` returning `{ resources: [...] }`
+3. **Blob SDK:** `containerClient.getBlockBlobClient(blobPath).download()` returning `{ readableStreamBody, contentType, contentLength }`
+4. **Routes:**
+   - `GET /health` → `{ status: "healthy" }`
+   - `GET /` → redirect to `/emails` or serve SPA (200)
+   - `GET /api/emails` → JSON array, supports `?q=` search param
+   - `GET /api/emails/:id` → single email JSON, 404 if not found
+   - `GET /api/emails/:id/attachments/:filename` → streamed binary, Content-Disposition header
+5. **Error handling:** Cosmos failures → 500 or 503; Blob failures → 404
+6. **Module init:** Azure clients via `CosmosClient` and `BlobServiceClient` (mockable)
+
+**Impact:** If server.js deviates from these patterns, mock layer in `tests/fixtures/mockAzure.js` needs updating.
+
+---
+
+### Node.js + React Rewrite — Lambert (Frontend Dev)
+
+**Date:** 2025-07-20  
+**Status:** Implemented
+
+**Architecture:** Express API + React SPA (Vite)
+
+**Backend:** Express.js serves JSON API (`/api/emails`, `/api/emails/:id`, `/api/emails/:id/attachments/:filename`) and React SPA from `dist/`.
+
+**Frontend:** React 19 + React Router 7 + Vite 6. Single page application with client-side routing.
+
+**Build:** Vite produces static assets in `dist/`. Multi-stage Dockerfile builds React then copies to production image.
+
+**Key Decisions:**
+
+1. **React in devDependencies:** React, Vite, and frontend libs are devDependencies. Multi-stage Dockerfile runs `npm ci` in build stage, `npm ci --omit=dev` in production. Keeps image lean — only Express and Azure SDKs.
+
+2. **Double sanitization for XSS:** Server sanitizes with `sanitize-html`. Client re-sanitizes with `DOMPurify` before `dangerouslySetInnerHTML`. Belt-and-suspenders.
+
+3. **Port 8000 preserved:** Container Apps references port 8000. Kept same to avoid infra changes.
+
+4. **Client-side sorting:** React state-based sorting in `EmailList` component. More maintainable, same UX.
+
+5. **CSS ported 1:1:** Apple-inspired design from `style.css` preserved in `App.css`. No design changes — glass nav, pill buttons, responsive breakpoints, micro-interactions.
+
+**Team Impact:**
+- **Kane (QA):** Python tests need rewriting for Node.js backend.
+- **Ripley (Infra):** No infrastructure changes needed. Same Dockerfile context, port, env vars.
+- **Build pipeline:** `build-push.yml` unchanged — still builds from `./web-app` context.
+
+---
+
+### Subject Filter Parameterization — Ripley (Cloud Dev)
+
+**Date:** 2025-07-21  
+**Status:** Implemented
+
+**Context:** Logic App workflow had `"Demo email"` hardcoded in 3 places. Made it impossible to change filter without editing template.
+
+**Decision:** Configured subject filter via `SUBJECT_FILTER` env var using `__PLACEHOLDER__` pattern:
+
+1. `logic-app/workflow.json` uses `__SUBJECT_FILTER__` placeholder in all 3 locations
+2. Both `deploy.sh` and `redeploy-logic-app.sh` substitute at deploy time via sed
+3. Default value: `"Demo email"` (backward compatible)
+
+**Usage:**
+```bash
+./infrastructure/deploy.sh                                    # default (Demo email)
+SUBJECT_FILTER="Invoice" ./infrastructure/deploy.sh           # custom filter
+```
+
+**Impact:**
+- ✅ Backward compatible — default behavior unchanged
+- ✅ No web app changes needed — filter only affects Logic App trigger
+- ✅ Follows existing pattern — same as `__STORAGE_ACCOUNT__` / `__COSMOS_ACCOUNT__`
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
