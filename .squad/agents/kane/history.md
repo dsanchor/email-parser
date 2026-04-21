@@ -40,6 +40,24 @@
 - ✅ Concurrent request handling verified
 - ✅ Blob download with content-disposition headers tested
 
+### Node.js Test Rewrite — 2026-04-21
+
+- **Scope:** Full test rewrite from Python (pytest) to Node.js (Jest + Supertest)
+- **Deleted:** `conftest.py`, `test_app.py`, `test_edge_cases.py`, `requirements-test.txt`, `__init__.py`
+- **Kept:** `validate_infrastructure.sh` (bash, no Python dependency)
+- **Created:**
+  - `tests/package.json` — jest@29, supertest@6 deps
+  - `tests/jest.config.js` — Node test env, verbose mode
+  - `tests/setup.js` — Dummy env vars for Azure SDK mocking
+  - `tests/fixtures/sampleEmails.js` — All 5 sample email variants (exact data preserved from conftest.py)
+  - `tests/fixtures/mockAzure.js` — `buildMockCosmosContainer()` + `buildMockBlobService()` builders
+  - `tests/app.test.js` — 19 route tests (health, redirect, email list, detail, attachments)
+  - `tests/edgeCases.test.js` — 11 edge case tests (Unicode, XSS, large attachments, path traversal, concurrency, service failures)
+- **Test count:** 30 total (19 + 11), matching original Python suite
+- **Mock strategy:** `jest.doMock()` with `jest.resetModules()` per test group — intercepts `@azure/cosmos`, `@azure/storage-blob`, `@azure/identity` at SDK level
+- **Assumes:** server.js exports `{ app }` or `app` directly; uses `container.items.query().fetchAll()` Cosmos pattern and `getBlockBlobClient().download()` Blob pattern
+- **Status:** Syntax-verified; tests cannot run until Lambert delivers `web-app/server.js`
+
 ### Known Constraints
 
 - `azure-cosmos` version constraint: `>=4.0.0` — v3 has incompatible API
