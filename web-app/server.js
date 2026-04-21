@@ -3,16 +3,12 @@
  * Serves React SPA in production, provides JSON API for Cosmos DB + Blob Storage.
  */
 
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-import express from "express";
-import { CosmosClient } from "@azure/cosmos";
-import { BlobServiceClient } from "@azure/storage-blob";
-import { DefaultAzureCredential } from "@azure/identity";
-import sanitizeHtml from "sanitize-html";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const path = require("path");
+const express = require("express");
+const { CosmosClient } = require("@azure/cosmos");
+const { BlobServiceClient } = require("@azure/storage-blob");
+const { DefaultAzureCredential } = require("@azure/identity");
+const sanitizeHtml = require("sanitize-html");
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -99,7 +95,7 @@ function extractBody(value) {
 const app = express();
 
 // Serve React build in production
-const distPath = join(__dirname, "dist");
+const distPath = path.join(__dirname, "dist");
 app.use(express.static(distPath));
 
 // ---------------------------------------------------------------------------
@@ -202,12 +198,16 @@ app.get("/api/emails/:id/attachments/:filename", async (req, res) => {
 
 // SPA fallback — serve index.html for all non-API routes
 app.get("*", (_req, res) => {
-  res.sendFile(join(distPath, "index.html"));
+  res.sendFile(path.join(distPath, "index.html"));
 });
 
 // ---------------------------------------------------------------------------
-// Start
+// Start (only when run directly, not imported for testing)
 // ---------------------------------------------------------------------------
-app.listen(PORT, () => {
-  console.log(`Email Parser web app listening on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Email Parser web app listening on port ${PORT}`);
+  });
+}
+
+module.exports = app;

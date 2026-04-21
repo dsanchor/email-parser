@@ -8,7 +8,7 @@ An Azure-native email processing pipeline that automatically captures incoming e
   Microsoft 365 ──▶ Logic App ──▶ Cosmos DB + Blob Storage ◀── Web App ◀── Users
 ```
 
-The Logic App triggers on new emails, extracts metadata, stores attachments in Blob Storage, and writes structured documents to Cosmos DB. A Python web app (FastAPI) on Azure Container Apps reads from both stores and presents emails with a clean, modern UI.
+The Logic App triggers on new emails, extracts metadata, stores attachments in Blob Storage, and writes structured documents to Cosmos DB. A Node.js web app (Express + React) on Azure Container Apps reads from both stores and presents emails with a clean, modern UI.
 
 **Full architecture details:** [`docs/architecture.md`](docs/architecture.md)
 **Design system:** [`DESIGN.md`](DESIGN.md)
@@ -19,7 +19,7 @@ The Logic App triggers on new emails, extracts metadata, stores attachments in B
 - **Microsoft 365 Account** (for email access via Office 365 connector)
 - **Azure CLI** (`az`) v2.50+ — [Install](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
 - **Docker** — [Install](https://docs.docker.com/get-docker/)
-- **Python 3.12+** (for local development)
+- **Node.js 20+** (for local development)
 
 ## Quick Start
 
@@ -91,19 +91,30 @@ email-parser/
 │   ├── workflow.json            # Logic App workflow definition (Consumption)
 │   └── connections.json         # Connection reference (documentation only)
 ├── web-app/
-│   ├── app.py                   # FastAPI application
-│   ├── requirements.txt         # Python dependencies
-│   ├── Dockerfile               # Container image build
-│   ├── templates/               # Jinja2 HTML templates
-│   │   ├── base.html            # Base layout (Apple design system)
-│   │   ├── emails.html          # Email list view
-│   │   └── email_detail.html    # Single email detail view
-│   └── static/
-│       └── css/
-│           └── style.css        # Apple-inspired stylesheet
+│   ├── server.js                # Express API server
+│   ├── package.json             # Node.js dependencies
+│   ├── vite.config.js           # Vite build configuration
+│   ├── index.html               # Vite entry point
+│   ├── Dockerfile               # Multi-stage container image build
+│   ├── .dockerignore             # Docker build exclusions
+│   └── src/
+│       ├── main.jsx             # React entry point
+│       ├── App.jsx              # React Router + layout
+│       ├── App.css              # Apple-inspired stylesheet
+│       ├── pages/
+│       │   ├── EmailList.jsx    # Email list view
+│       │   ├── EmailDetail.jsx  # Single email detail view
+│       │   └── ErrorPage.jsx    # Error boundary page
+│       └── components/
+│           └── Layout.jsx       # Shared layout wrapper
 └── tests/
-    ├── test_app.py              # Web app unit tests
-    └── conftest.py              # Pytest fixtures and test config
+    ├── app.test.js              # Web app route tests (Jest + Supertest)
+    ├── edgeCases.test.js        # Edge case tests
+    ├── setup.js                 # Test setup (env vars)
+    ├── jest.config.js           # Jest configuration
+    └── fixtures/
+        ├── sampleEmails.js      # Sample email data
+        └── mockAzure.js         # Azure SDK mocks
 ```
 
 ## How It Works
@@ -121,10 +132,13 @@ email-parser/
 
 ### Web App — Email Viewer
 
-- **Email List** (`/`): Paginated cards showing sender, subject, preview, timestamp, and attachment count
-- **Email Detail** (`/emails/{id}`): Full email body with attachment download links
-- **Attachment Download** (`/emails/{id}/attachments/{filename}`): Streams files from Blob Storage via managed identity
+- **Backend:** Express.js API server serving a React SPA and providing JSON endpoints
+- **Frontend:** React + Vite single-page application with React Router
+- **Email List** (`/`): Sortable, searchable table showing sender, subject, date, and attachment count
+- **Email Detail** (`/emails/{id}`): Full email body (sanitized HTML) with attachment download links
+- **Attachment Download** (`/api/emails/{id}/attachments/{filename}`): Streams files from Blob Storage via managed identity
 - **Design:** Apple-inspired UI following the design system in `DESIGN.md`
+- **Sanitization:** Server-side via `sanitize-html`, client-side via `DOMPurify` (defense in depth)
 
 ## Environment Variables
 
@@ -156,12 +170,8 @@ The only interactive authentication is the **Office 365 OAuth consent** — a on
 ```bash
 cd web-app
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate
-
 # Install dependencies
-pip install -r requirements.txt
+npm install
 
 # Set environment variables
 export COSMOS_ENDPOINT="https://your-cosmos.documents.azure.com:443/"
@@ -170,17 +180,33 @@ export COSMOS_CONTAINER="emails"
 export STORAGE_ACCOUNT_URL="https://yourstorage.blob.core.windows.net"
 export STORAGE_CONTAINER="email-attachments"
 
-# Run the app
-uvicorn app:app --reload --port 8000
+# Run the app (API + Vite dev server with hot reload)
+npm run dev
+
+# Or run only the API server (serves pre-built React from dist/)
+npm start
 ```
 
 > **Note:** For local development, ensure your Azure CLI identity (`az login`) has the required Cosmos DB and Storage roles assigned.
+
+## Building for Production
+
+```bash
+cd web-app
+
+# Build the React frontend
+npm run build
+
+# Start the production server
+npm start
+```
 
 ## Running Tests
 
 ```bash
 cd tests
-pytest -v
+npm install
+npm test
 ```
 
 ## License
